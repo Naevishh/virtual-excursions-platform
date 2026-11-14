@@ -477,3 +477,125 @@ input {
     flex-direction: column;
   }
 }
+
+/* ---------- Виртуальная экскурсия ---------- */
+
+.excursion-button {
+  background: #059669;
+}
+
+.excursion-button:hover {
+  background: #047857;
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.excursion-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #059669;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.excursion-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.excursion-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.excursion-dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border-radius: 999px;
+  border: 0;
+  background: #e5e7eb;
+  cursor: pointer;
+}
+
+.excursion-dot.done {
+  background: #a7f3d0;
+}
+
+.excursion-dot.active {
+  background: #059669;
+}
+
+.excursion-placeholder {
+  background: linear-gradient(135deg, #ecfdf5, #eef2ff);
+}
+
+.excursion-stop-title {
+  margin: 0;
+  font-size: 17px;
+}
+
+.excursion-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.excursion-done {
+  text-align: center;
+  padding: 20px 8px 8px;
+}
+
+.excursion-done-icon {
+  font-size: 44px;
+  margin-bottom: 8px;
+}
+
+.excursion-done p {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.excursion-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.excursion-badge.completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* ---------- Рекомендации ---------- */
+
+.rec-subtitle {
+  margin: -8px 0 12px;
+}
+
+.rec-reasons {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: #047857;
+}
+
+.rec-reasons li + li {
+  margin-top: 2px;
+}

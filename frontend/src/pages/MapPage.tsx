@@ -1,18 +1,25 @@
 import { useEffect, useState } from "react";
 import {
   buildRoute as buildRouteApi,
+  completeExcursion,
   fetchAttraction,
   fetchAttractions,
   fetchCategories,
   fetchDistricts,
+  fetchExcursion,
+  fetchExcursionHistory,
   fetchNearbyAttractions,
+  fetchRecommendations,
   fetchSimilarAttractions,
+  startExcursion,
 } from "../api/client";
 import AttractionCard from "../components/AttractionCard";
 import AttractionList from "../components/AttractionList";
+import ExcursionView from "../components/ExcursionView";
 import FilterPanel from "../components/FilterPanel";
 import Legend from "../components/Legend";
 import MapView from "../components/MapView";
+import Recommendations from "../components/Recommendations";
 import RelatedList from "../components/RelatedList";
 import RoutePanel from "../components/RoutePanel";
 import type {
@@ -21,6 +28,9 @@ import type {
   AttractionFilters,
   Category,
   District,
+  Excursion,
+  ExcursionStatus,
+  RecommendationsResponse,
   RouteResponse,
 } from "../types";
 
@@ -61,6 +71,42 @@ export default function MapPage() {
   const [relatedTitle, setRelatedTitle] = useState<string | null>(null);
   const [relatedLoading, setRelatedLoading] = useState(false);
   const [relatedError, setRelatedError] = useState<string | null>(null);
+
+  // --- виртуальная экскурсия ---
+  const [excursionOpen, setExcursionOpen] = useState(false);
+  const [excursion, setExcursion] = useState<Excursion | null>(null);
+  const [excursionLoading, setExcursionLoading] = useState(false);
+  const [excursionError, setExcursionError] = useState<string | null>(null);
+
+  // --- история посетителя и рекомендации ---
+  const [progress, setProgress] = useState<Record<number, ExcursionStatus>>({});
+  const [recommendations, setRecommendations] =
+    useState<RecommendationsResponse | null>(null);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+
+  async function loadPersonalData() {
+    setRecommendationsLoading(true);
+    try {
+      const [history, recs] = await Promise.all([
+        fetchExcursionHistory(),
+        fetchRecommendations(5),
+      ]);
+      const map: Record<number, ExcursionStatus> = {};
+      history.forEach((item) => {
+        map[item.attraction_id] = item.status;
+      });
+      setProgress(map);
+      setRecommendations(recs);
+    } catch {
+      // рекомендации — необязательная часть интерфейса
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadPersonalData();
+  }, []);
 
   useEffect(() => {
     async function loadStaticData() {
@@ -149,6 +195,9 @@ export default function MapPage() {
   useEffect(() => {
     setRouteResult(null);
     setRouteError(null);
+    setExcursionOpen(false);
+    setExcursion(null);
+    setExcursionError(null);
     setRelated([]);
     setRelatedTitle(null);
     setRelatedError(null);
@@ -267,6 +316,43 @@ export default function MapPage() {
     }
   }
 
+  /** Кнопка «Пройти экскурсию» — именно она пишет событие для рекомендаций. */
+  async function handleStartExcursion() {
+    if (!selected) return;
+    const attractionId = selected.id;
+
+    setExcursionOpen(true);
+    setExcursionLoading(true);
+    setExcursionError(null);
+
+    try {
+      const [data] = await Promise.all([
+        fetchExcursion(attractionId),
+        startExcursion(attractionId),
+      ]);
+      setExcursion(data);
+      setProgress((prev) =>
+        prev[attractionId] === "completed"
+          ? prev
+          : { ...prev, [attractionId]: "started" }
+      );
+      loadPersonalData();
+    } catch (error: any) {
+      setExcursionError(
+        error?.response?.data?.detail || "Не удалось загрузить экскурсию"
+      );
+    } finally {
+      setExcursionLoading(false);
+    }
+  }
+
+  async function handleCompleteExcursion() {
+    if (!excursion) return;
+    await completeExcursion(excursion.attraction_id);
+    setProgress((prev) => ({ ...prev, [excursion.attraction_id]: "completed" }));
+    await loadPersonalData();
+  }
+
   function clearRoute() {
     setRouteResult(null);
     setRouteError(null);
@@ -350,6 +436,7 @@ export default function MapPage() {
             loading={loadingList}
             error={listError}
             selectedId={selected?.id ?? null}
+            progress={progress}
             onSelect={setSelected}
           />
         </aside>
@@ -366,16 +453,38 @@ export default function MapPage() {
 
         <aside className="right-panel">
           {!selected && (
-            <div className="empty-state">
-              Кликните по маркеру на карте или выберите объект в списке слева.
-            </div>
+            <>
+              <div className="empty-state">
+                Кликните по маркеру на карте или выберите объект в списке слева.
+              </div>
+              <Recommendations
+                data={recommendations}
+                loading={recommendationsLoading}
+                onSelect={setSelected}
+              />
+            </>
           )}
 
-          {selected && (
+          {selected && excursionOpen && (
+            <ExcursionView
+              excursion={excursion}
+              loading={excursionLoading}
+              error={excursionError}
+              onClose={() => setExcursionOpen(false)}
+              onComplete={handleCompleteExcursion}
+              recommendations={recommendations}
+              recommendationsLoading={recommendationsLoading}
+              onSelectRecommendation={setSelected}
+            />
+          )}
+
+          {selected && !excursionOpen && (
             <AttractionCard
               attraction={detail}
               loading={detailLoading}
               onClose={() => setSelected(null)}
+              excursionStatus={progress[selected.id] ?? null}
+              onStartExcursion={handleStartExcursion}
               onBuildRoute={handleBuildRoute}
               onShowSimilar={handleShowSimilar}
               onShowNearby={handleShowNearby}
@@ -383,16 +492,18 @@ export default function MapPage() {
             />
           )}
 
-          <RoutePanel
-            originLabel={originLabel}
-            destinationName={selected?.name || ""}
-            result={routeResult}
-            loading={routeLoading}
-            error={routeError}
-            onClear={clearRoute}
-          />
+          {!excursionOpen && (
+            <RoutePanel
+              originLabel={originLabel}
+              destinationName={selected?.name || ""}
+              result={routeResult}
+              loading={routeLoading}
+              error={routeError}
+              onClear={clearRoute}
+            />
+          )}
 
-          {relatedTitle && (
+          {!excursionOpen && relatedTitle && (
             <RelatedList
               title={relatedTitle}
               items={related}

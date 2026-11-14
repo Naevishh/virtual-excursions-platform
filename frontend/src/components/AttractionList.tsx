@@ -1,4 +1,4 @@
-import type { AttractionBrief } from "../types";
+import type { AttractionBrief, ExcursionStatus } from "../types";
 import { formatDistance } from "../utils/format";
 
 interface AttractionListProps {
@@ -7,6 +7,7 @@ interface AttractionListProps {
   loading: boolean;
   error: string | null;
   selectedId: number | null;
+  progress: Record<number, ExcursionStatus>;
   onSelect: (item: AttractionBrief) => void;
 }
 
@@ -16,6 +17,7 @@ export default function AttractionList({
   loading,
   error,
   selectedId,
+  progress,
   onSelect,
 }: AttractionListProps) {
   return (
@@ -39,7 +41,14 @@ export default function AttractionList({
             className={`list-item ${selectedId === item.id ? "selected" : ""}`}
             onClick={() => onSelect(item)}
           >
-            <div className="list-item-title">{item.name}</div>
+            <div className="list-item-title">
+              {item.name}
+              {progress[item.id] === "completed" && (
+                <span className="excursion-badge completed" title="Экскурсия пройдена">
+                  ✓
+                </span>
+              )}
+            </div>
             <div className="list-item-meta">
               <span>{item.category.name}</span>
               <span>•</span>

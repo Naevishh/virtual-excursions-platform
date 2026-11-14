@@ -1,10 +1,12 @@
-import type { AttractionDetail } from "../types";
+import type { AttractionDetail, ExcursionStatus } from "../types";
 import { categoryEmoji } from "../utils/format";
 
 interface AttractionCardProps {
   attraction: AttractionDetail | null;
   loading: boolean;
   onClose: () => void;
+  excursionStatus: ExcursionStatus | null;
+  onStartExcursion: () => void;
   onBuildRoute: () => void;
   onShowSimilar: () => void;
   onShowNearby: () => void;
@@ -15,6 +17,8 @@ export default function AttractionCard({
   attraction,
   loading,
   onClose,
+  excursionStatus,
+  onStartExcursion,
   onBuildRoute,
   onShowSimilar,
   onShowNearby,
@@ -57,6 +61,14 @@ export default function AttractionCard({
           {Number(attraction.latitude).toFixed(5)},{" "}
           {Number(attraction.longitude).toFixed(5)}
         </div>
+        {excursionStatus && (
+          <div>
+            <span className="meta-label">Экскурсия:</span>{" "}
+            <span className={`excursion-badge ${excursionStatus}`}>
+              {excursionStatus === "completed" ? "✓ пройдена" : "начата"}
+            </span>
+          </div>
+        )}
       </div>
 
       {!attraction.is_accessible && (
@@ -70,16 +82,18 @@ export default function AttractionCard({
         {attraction.full_description || attraction.short_description}
       </p>
 
-      {attraction.source_url && (
-        <p className="card-source">
-          Источник:{" "}
-          <a href={attraction.source_url} target="_blank" rel="noreferrer">
-            {attraction.source_url}
-          </a>
-        </p>
-      )}
-
       <div className="card-actions">
+        <button
+          type="button"
+          className="primary-button excursion-button"
+          onClick={onStartExcursion}
+        >
+          {excursionStatus === "completed"
+            ? "Пройти экскурсию ещё раз"
+            : excursionStatus === "started"
+            ? "Продолжить экскурсию"
+            : "Пройти экскурсию"}
+        </button>
         <button type="button" className="primary-button" onClick={onBuildRoute}>
           Построить маршрут
         </button>

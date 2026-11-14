@@ -74,3 +74,40 @@ export interface AttractionFilters {
   radius_km?: number;
   limit?: number;
 }
+
+export type ExcursionStatus = "started" | "completed";
+
+export interface ExcursionStop {
+  id: number;
+  position: number;
+  title: string;
+  description: string;
+  image_url?: string | null;
+}
+
+export interface Excursion {
+  attraction_id: number;
+  attraction_name: string;
+  category: CategoryBrief;
+  stops: ExcursionStop[];
+  status: ExcursionStatus | null;
+}
+
+export interface ExcursionProgress {
+  attraction_id: number;
+  status: ExcursionStatus;
+  started_at: string;
+  completed_at?: string | null;
+}
+
+export interface RecommendationItem {
+  attraction: AttractionBrief;
+  score: number;
+  reasons: string[];
+}
+
+export interface RecommendationsResponse {
+  strategy: "personal" | "popular";
+  based_on: number;
+  items: RecommendationItem[];
+}

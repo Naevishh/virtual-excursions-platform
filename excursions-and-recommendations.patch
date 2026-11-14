@@ -1,0 +1,2274 @@
+From 33f1f5ac10791c6c90b781d6733ddbd456087148 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 14 Nov 2026 19:56:18 +0300
+Subject: [PATCH] =?UTF-8?q?=D0=92=D0=B8=D1=80=D1=82=D1=83=D0=B0=D0=BB?=
+ =?UTF-8?q?=D1=8C=D0=BD=D1=8B=D0=B5=20=D1=8D=D0=BA=D1=81=D0=BA=D1=83=D1=80?=
+ =?UTF-8?q?=D1=81=D0=B8=D0=B8=20=D0=BF=D0=BE=20=D1=82=D0=BE=D1=87=D0=BA?=
+ =?UTF-8?q?=D0=B0=D0=BC=20=D0=B8=20=D1=80=D0=B5=D0=BA=D0=BE=D0=BC=D0=B5?=
+ =?UTF-8?q?=D0=BD=D0=B4=D0=B0=D1=86=D0=B8=D0=B8=20=D0=BF=D0=BE=20=D0=BF?=
+ =?UTF-8?q?=D1=80=D0=BE=D0=B9=D0=B4=D0=B5=D0=BD=D0=BD=D1=8B=D0=BC=20=D1=8D?=
+ =?UTF-8?q?=D0=BA=D1=81=D0=BA=D1=83=D1=80=D1=81=D0=B8=D1=8F=D0=BC?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_017n72JTAQoXf4hDyndkYgub
+---
+ README.md                                   |  63 ++-
+ backend/app/main.py                         |  19 +-
+ backend/app/models.py                       |  59 +++
+ backend/app/routers/excursions.py           | 111 ++++++
+ backend/app/routers/recommendations.py      |  57 +++
+ backend/app/schemas.py                      |  48 ++-
+ backend/app/seed.py                         |  46 ++-
+ backend/app/seed_excursions.py              | 404 ++++++++++++++++++++
+ backend/app/services/recommender.py         | 253 ++++++++++++
+ backend/app/visitor.py                      |  42 ++
+ frontend/package-lock.json                  |  18 +
+ frontend/package.json                       |   1 +
+ frontend/public/excursions/README.md        |  13 +
+ frontend/src/api/client.ts                  |  48 +++
+ frontend/src/components/AttractionCard.tsx  |  25 +-
+ frontend/src/components/AttractionList.tsx  |  13 +-
+ frontend/src/components/ExcursionView.tsx   | 200 ++++++++++
+ frontend/src/components/Recommendations.tsx |  56 +++
+ frontend/src/components/StopImage.tsx       |  26 ++
+ frontend/src/index.css                      | 122 ++++++
+ frontend/src/pages/MapPage.tsx              | 137 ++++++-
+ frontend/src/types/index.ts                 |  37 ++
+ frontend/src/utils/visitor.ts               |  29 ++
+ 23 files changed, 1807 insertions(+), 20 deletions(-)
+ create mode 100644 backend/app/routers/excursions.py
+ create mode 100644 backend/app/routers/recommendations.py
+ create mode 100644 backend/app/seed_excursions.py
+ create mode 100644 backend/app/services/recommender.py
+ create mode 100644 backend/app/visitor.py
+ create mode 100644 frontend/public/excursions/README.md
+ create mode 100644 frontend/src/components/ExcursionView.tsx
+ create mode 100644 frontend/src/components/Recommendations.tsx
+ create mode 100644 frontend/src/components/StopImage.tsx
+ create mode 100644 frontend/src/utils/visitor.ts
+
+diff --git a/README.md b/README.md
+index 53accf3..9aa34da 100644
+--- a/README.md
++++ b/README.md
+@@ -1,7 +1,7 @@
+ # 🏰 Virtual Excursions Platform
+ 
+ Платформа виртуальных экскурсий по достопримечательностям Минска и Минской области.  
+-Fullstack-приложение с интерактивной картой, фильтрами, построением маршрутов и рекомендациями похожих объектов.
++Fullstack-приложение с интерактивной картой, фильтрами, построением маршрутов, пошаговыми виртуальными экскурсиями и персональными рекомендациями.
+ 
+ ---
+ 
+@@ -14,6 +14,8 @@ Fullstack-приложение с интерактивной картой, фи
+ - 🚗 Строить реальные маршруты через OSRM (расстояние + время в пути)
+ - 🔗 Открывать маршрут в Яндекс Картах
+ - 🎯 Находить похожие объекты и достопримечательности рядом
++- 🚶 Проходить виртуальную экскурсию по объекту: точки с картинкой и мини-описанием
++- ✨ Получать рекомендации на основе пройденных экскурсий
+ 
+ ---
+ 
+@@ -180,6 +182,63 @@ npm run dev
+ | 7 | В карточке → «Похожие объекты» | Список объектов той же категории |
+ | 8 | В карточке → «Что рядом» | Объекты в радиусе от выбранного |
+ 
++| 9 | В карточке → «Пройти экскурсию» | В правой панели — пошаговая экскурсия: картинка, название и описание каждой точки |
++| 10 | Дойти до последней точки → «Завершить экскурсию» | Экскурсия отмечена ✓ в списке и карточке, ниже — блок «Что пройти дальше» |
++| 11 | Закрыть карточку | В правой панели — «Рекомендуем вам» с пояснением, почему предложен каждый объект |
++
++---
++
++## 🚶 Виртуальные экскурсии
++
++У каждого объекта есть 3–5 точек экскурсии (`excursion_stops`): название, мини-описание, картинка.
++Контент лежит в `backend/app/seed_excursions.py` и загружается командой `python -m app.seed`.
++
++Картинки: `frontend/public/excursions/<slug>/<номер>.jpg` (подробнее — README в этой папке).
++Если картинки нет, показывается заглушка.
++
++---
++
++## ✨ Рекомендательная система
++
++### Что считается сигналом
++
++Регистрации нет, поэтому браузер получает анонимный ID посетителя (UUID в `localStorage`),
++который передаётся заголовком `X-Visitor-Id`. История хранится в таблице `excursion_progress`.
++
++| Действие | Статус | Вес |
++|---|---|---|
++| Нажал «Пройти экскурсию» | `started` | 0.5 |
++| Дошёл до конца и нажал «Завершить экскурсию» | `completed` | 1.0 |
++| Клик по маркеру / открытие карточки | — | не учитывается |
++
++### Как считается рекомендация
++
++Гибридная модель (`backend/app/services/recommender.py`), для каждого непройденного объекта:
++
++```
++score = 0.45 · collaborative   «кто прошёл X, тот прошёл и Y» (item-item, косинусная мера)
++      + 0.30 · category        доля этой категории в истории посетителя
++      + 0.10 · district        доля этого района в истории посетителя
++      + 0.15 · geo             exp(-d / 25 км) до ближайшего пройденного объекта
++```
++
++- **Холодный старт** (истории нет) — показываются популярные экскурсии.
++- **Начатые, но не завершённые** экскурсии получают бонус: их предлагают закончить.
++- Каждая рекомендация приходит с **объяснением** («Её часто проходят те, кто прошёл «Мирский замок»»,
++  «Вы прошли 2 экскурсии в категории «Замки»», «Рядом с уже пройденным…»).
++- В сид добавлена демо-история 10 анонимных посетителей (`demo-*`), чтобы коллаборативная часть
++  работала с первого запуска.
++
++### API
++
++| Метод | Путь | Описание |
++|---|---|---|
++| GET | `/api/attractions/{id}/excursion` | Точки экскурсии + статус для текущего посетителя |
++| POST | `/api/attractions/{id}/excursion/start` | Кнопка «Пройти экскурсию» |
++| POST | `/api/attractions/{id}/excursion/complete` | Экскурсия пройдена до конца |
++| GET | `/api/excursions/history` | История посетителя |
++| GET | `/api/recommendations?limit=5` | Рекомендации (`strategy`: `personal` / `popular`) |
++
+ ---
+ 
+ ## 🔧 Возможные проблемы
+@@ -237,6 +296,8 @@ npm run dev
+ ## 📝 Примечания
+ 
+ - IDs объектов в базе могут меняться при повторном запуске `seed` — это нормально, фронтенд не хардкодит ID.
++- Повторный `seed` очищает историю прохождения экскурсий (остаются только демо-посетители).
++- Если база уже была создана до появления экскурсий — новые таблицы создадутся сами при старте backend, но точки экскурсий появятся только после `python -m app.seed`.
+ - Для чистой демо-версии по Минской области из seed убраны объекты других областей (например, Гольшаны).
+ - Демо-сервер OSRM бесплатный, но нестабильный — для продакшена нужен свой инстанс.
+ 
+diff --git a/backend/app/main.py b/backend/app/main.py
+index a33ba3a..6b9895d 100644
+--- a/backend/app/main.py
++++ b/backend/app/main.py
+@@ -2,7 +2,14 @@ from fastapi import FastAPI
+ from fastapi.middleware.cors import CORSMiddleware
+ 
+ from app.database import create_db_and_tables
+-from app.routers import attractions, categories, districts, route
++from app.routers import (
++    attractions,
++    categories,
++    districts,
++    excursions,
++    recommendations,
++    route,
++)
+ 
+ create_db_and_tables()
+ 
+@@ -45,6 +52,16 @@ app.include_router(
+     prefix="/api/districts",
+     tags=["districts"],
+ )
++app.include_router(
++    excursions.router,
++    prefix="/api",
++    tags=["excursions"],
++)
++app.include_router(
++    recommendations.router,
++    prefix="/api/recommendations",
++    tags=["recommendations"],
++)
+ app.include_router(
+     attractions.router,
+     prefix="/api/attractions",
+diff --git a/backend/app/models.py b/backend/app/models.py
+index 68bd470..302fc6d 100644
+--- a/backend/app/models.py
++++ b/backend/app/models.py
+@@ -7,6 +7,7 @@ from sqlalchemy import (
+     Numeric,
+     String,
+     Text,
++    UniqueConstraint,
+     func,
+ )
+ from sqlalchemy.orm import relationship
+@@ -67,3 +68,61 @@ class Attraction(Base):
+ 
+     category = relationship("Category", back_populates="attractions")
+     district = relationship("District", back_populates="attractions")
++    stops = relationship(
++        "ExcursionStop",
++        back_populates="attraction",
++        order_by="ExcursionStop.position",
++        cascade="all, delete-orphan",
++    )
++
++
++class ExcursionStop(Base):
++    """Точка виртуальной экскурсии по объекту: картинка + мини-описание."""
++
++    __tablename__ = "excursion_stops"
++    __table_args__ = (
++        UniqueConstraint("attraction_id", "position", name="uq_stop_position"),
++    )
++
++    id = Column(Integer, primary_key=True, index=True)
++    attraction_id = Column(
++        Integer,
++        ForeignKey("attractions.id", ondelete="CASCADE"),
++        nullable=False,
++        index=True,
++    )
++    position = Column(Integer, nullable=False)
++    title = Column(String(255), nullable=False)
++    description = Column(Text, nullable=False)
++    image_url = Column(Text, nullable=True)
++
++    attraction = relationship("Attraction", back_populates="stops")
++
++
++class ExcursionProgress(Base):
++    """
++    Факт прохождения экскурсии анонимным посетителем.
++
++    Запись создаётся по кнопке «Пройти экскурсию» (status = started)
++    и обновляется на последнем шаге (status = completed).
++    Клики по маркерам на карте сюда НЕ попадают.
++    """
++
++    __tablename__ = "excursion_progress"
++    __table_args__ = (
++        UniqueConstraint("visitor_id", "attraction_id", name="uq_visitor_attraction"),
++    )
++
++    id = Column(Integer, primary_key=True, index=True)
++    visitor_id = Column(String(64), nullable=False, index=True)
++    attraction_id = Column(
++        Integer,
++        ForeignKey("attractions.id", ondelete="CASCADE"),
++        nullable=False,
++        index=True,
++    )
++    status = Column(String(20), nullable=False, default="started")  # started / completed
++    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
++    completed_at = Column(DateTime(timezone=True), nullable=True)
++
++    attraction = relationship("Attraction")
+diff --git a/backend/app/routers/excursions.py b/backend/app/routers/excursions.py
+new file mode 100644
+index 0000000..fb42b49
+--- /dev/null
++++ b/backend/app/routers/excursions.py
+@@ -0,0 +1,111 @@
++from datetime import datetime, timezone
++from typing import List, Optional
++
++from fastapi import APIRouter, Depends, HTTPException
++from sqlalchemy.orm import Session, joinedload
++
++from app.database import get_db
++from app.models import Attraction, ExcursionProgress
++from app.schemas import ExcursionOut, ProgressOut
++from app.visitor import optional_visitor, required_visitor
++
++router = APIRouter()
++
++
++def _get_attraction(db: Session, attraction_id: int) -> Attraction:
++    attraction = (
++        db.query(Attraction)
++        .options(joinedload(Attraction.category), joinedload(Attraction.stops))
++        .filter(Attraction.id == attraction_id, Attraction.is_published.is_(True))
++        .first()
++    )
++    if not attraction:
++        raise HTTPException(status_code=404, detail="Объект не найден")
++    return attraction
++
++
++def _get_progress(
++    db: Session, visitor_id: str, attraction_id: int
++) -> Optional[ExcursionProgress]:
++    return (
++        db.query(ExcursionProgress)
++        .filter(
++            ExcursionProgress.visitor_id == visitor_id,
++            ExcursionProgress.attraction_id == attraction_id,
++        )
++        .first()
++    )
++
++
++@router.get("/attractions/{attraction_id}/excursion", response_model=ExcursionOut)
++def read_excursion(
++    attraction_id: int,
++    db: Session = Depends(get_db),
++    visitor_id: Optional[str] = Depends(optional_visitor),
++):
++    """Точки экскурсии + статус прохождения текущим посетителем."""
++    attraction = _get_attraction(db, attraction_id)
++    progress = _get_progress(db, visitor_id, attraction_id) if visitor_id else None
++    return {
++        "attraction_id": attraction.id,
++        "attraction_name": attraction.name,
++        "category": attraction.category,
++        "stops": attraction.stops,
++        "status": progress.status if progress else None,
++    }
++
++
++@router.post(
++    "/attractions/{attraction_id}/excursion/start", response_model=ProgressOut
++)
++def start_excursion(
++    attraction_id: int,
++    db: Session = Depends(get_db),
++    visitor_id: str = Depends(required_visitor),
++):
++    """Нажатие кнопки «Пройти экскурсию». Пройденную не понижает до started."""
++    _get_attraction(db, attraction_id)
++    progress = _get_progress(db, visitor_id, attraction_id)
++    if not progress:
++        progress = ExcursionProgress(
++            visitor_id=visitor_id, attraction_id=attraction_id, status="started"
++        )
++        db.add(progress)
++        db.commit()
++        db.refresh(progress)
++    return progress
++
++
++@router.post(
++    "/attractions/{attraction_id}/excursion/complete", response_model=ProgressOut
++)
++def complete_excursion(
++    attraction_id: int,
++    db: Session = Depends(get_db),
++    visitor_id: str = Depends(required_visitor),
++):
++    """Посетитель дошёл до последней точки экскурсии."""
++    _get_attraction(db, attraction_id)
++    progress = _get_progress(db, visitor_id, attraction_id)
++    if not progress:
++        progress = ExcursionProgress(visitor_id=visitor_id, attraction_id=attraction_id)
++        db.add(progress)
++    progress.status = "completed"
++    progress.completed_at = datetime.now(timezone.utc)
++    db.commit()
++    db.refresh(progress)
++    return progress
++
++
++@router.get("/excursions/history", response_model=List[ProgressOut])
++def read_history(
++    db: Session = Depends(get_db),
++    visitor_id: str = Depends(required_visitor),
++):
++    """История посетителя: какие экскурсии начаты и пройдены."""
++    return (
++        db.query(ExcursionProgress)
++        .filter(ExcursionProgress.visitor_id == visitor_id)
++        .order_by(ExcursionProgress.started_at.desc())
++        .all()
++    )
+diff --git a/backend/app/routers/recommendations.py b/backend/app/routers/recommendations.py
+new file mode 100644
+index 0000000..28f32c7
+--- /dev/null
++++ b/backend/app/routers/recommendations.py
+@@ -0,0 +1,57 @@
++from typing import Optional
++
++from fastapi import APIRouter, Depends, Query
++from sqlalchemy.orm import Session
++
++from app.database import get_db
++from app.models import Attraction
++from app.schemas import RecommendationsOut
++from app.services.recommender import recommend
++from app.visitor import optional_visitor
++
++router = APIRouter()
++
++
++def attraction_to_brief(a: Attraction) -> dict:
++    return {
++        "id": a.id,
++        "name": a.name,
++        "slug": a.slug,
++        "category": {"slug": a.category.slug, "name": a.category.name},
++        "district": {
++            "slug": a.district.slug,
++            "name": a.district.name,
++            "type": a.district.type,
++        },
++        "latitude": float(a.latitude),
++        "longitude": float(a.longitude),
++        "short_description": a.short_description,
++        "photo_url": a.photo_url,
++        "is_accessible": a.is_accessible,
++        "distance_m": None,
++    }
++
++
++@router.get("", response_model=RecommendationsOut)
++def read_recommendations(
++    limit: int = Query(5, ge=1, le=20),
++    db: Session = Depends(get_db),
++    visitor_id: Optional[str] = Depends(optional_visitor),
++):
++    """
++    Персональные рекомендации по пройденным экскурсиям (заголовок X-Visitor-Id).
++    Без истории — популярные экскурсии.
++    """
++    strategy, based_on, items = recommend(db, visitor_id, limit)
++    return {
++        "strategy": strategy,
++        "based_on": based_on,
++        "items": [
++            {
++                "attraction": attraction_to_brief(r.attraction),
++                "score": r.score,
++                "reasons": r.reasons,
++            }
++            for r in items
++        ],
++    }
+diff --git a/backend/app/schemas.py b/backend/app/schemas.py
+index 71a6c4e..86a9fcd 100644
+--- a/backend/app/schemas.py
++++ b/backend/app/schemas.py
+@@ -1,4 +1,5 @@
+-from typing import Any, Dict, Optional
++from datetime import datetime
++from typing import Any, Dict, List, Optional
+ 
+ from pydantic import BaseModel, ConfigDict, Field
+ 
+@@ -83,3 +84,48 @@ class RouteResponse(BaseModel):
+     duration_s: float
+     geometry: Dict[str, Any]
+     external_yandex_url: str
++
++
++# ---------- Экскурсии ----------
++
++
++class ExcursionStopOut(BaseModel):
++    id: int
++    position: int
++    title: str
++    description: str
++    image_url: Optional[str] = None
++
++    model_config = ConfigDict(from_attributes=True)
++
++
++class ExcursionOut(BaseModel):
++    attraction_id: int
++    attraction_name: str
++    category: CategoryBrief
++    stops: List[ExcursionStopOut]
++    status: Optional[str] = None  # None / started / completed
++
++
++class ProgressOut(BaseModel):
++    attraction_id: int
++    status: str
++    started_at: datetime
++    completed_at: Optional[datetime] = None
++
++    model_config = ConfigDict(from_attributes=True)
++
++
++# ---------- Рекомендации ----------
++
++
++class RecommendationItem(BaseModel):
++    attraction: AttractionBrief
++    score: float
++    reasons: List[str]
++
++
++class RecommendationsOut(BaseModel):
++    strategy: str  # personal / popular
++    based_on: int  # сколько экскурсий учтено в профиле
++    items: List[RecommendationItem]
+diff --git a/backend/app/seed.py b/backend/app/seed.py
+index 92fddf2..2f7f5bb 100644
+--- a/backend/app/seed.py
++++ b/backend/app/seed.py
+@@ -1,5 +1,14 @@
+ from app.database import SessionLocal, create_db_and_tables
+-from app.models import Attraction, Category, District
++from datetime import datetime, timezone
++
++from app.models import (
++    Attraction,
++    Category,
++    District,
++    ExcursionProgress,
++    ExcursionStop,
++)
++from app.seed_excursions import DEMO_VISITORS, EXCURSIONS
+ 
+ 
+ CATEGORIES = [
+@@ -233,6 +242,8 @@ def seed():
+     create_db_and_tables()
+ 
+     with SessionLocal() as session:
++        session.query(ExcursionProgress).delete()
++        session.query(ExcursionStop).delete()
+         session.query(Attraction).delete()
+         session.query(District).delete()
+         session.query(Category).delete()
+@@ -252,6 +263,7 @@ def seed():
+             session.flush()
+             district_map[item["slug"]] = obj.id
+ 
++        attraction_map = {}
+         for item in ATTRACTIONS:
+             obj = Attraction(
+                 name=item["name"],
+@@ -268,6 +280,36 @@ def seed():
+                 is_published=True,
+             )
+             session.add(obj)
++            session.flush()
++            attraction_map[item["slug"]] = obj.id
++
++            for position, stop in enumerate(EXCURSIONS.get(item["slug"], []), start=1):
++                session.add(
++                    ExcursionStop(
++                        attraction_id=obj.id,
++                        position=position,
++                        title=stop["title"],
++                        description=stop["description"],
++                        image_url=stop.get(
++                            "image_url", f"/excursions/{item['slug']}/{position}.jpg"
++                        ),
++                    )
++                )
++
++        now = datetime.now(timezone.utc)
++        progress_count = 0
++        for visitor_id, history in DEMO_VISITORS.items():
++            for status in ("completed", "started"):
++                for slug in history.get(status, []):
++                    session.add(
++                        ExcursionProgress(
++                            visitor_id=visitor_id,
++                            attraction_id=attraction_map[slug],
++                            status=status,
++                            completed_at=now if status == "completed" else None,
++                        )
++                    )
++                    progress_count += 1
+ 
+         session.commit()
+ 
+@@ -275,6 +317,8 @@ def seed():
+     print(f"Categories: {len(CATEGORIES)}")
+     print(f"Districts: {len(DISTRICTS)}")
+     print(f"Attractions: {len(ATTRACTIONS)}")
++    print(f"Excursion stops: {sum(len(v) for v in EXCURSIONS.values())}")
++    print(f"Demo visitors: {len(DEMO_VISITORS)} ({progress_count} записей прохождения)")
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/backend/app/seed_excursions.py b/backend/app/seed_excursions.py
+new file mode 100644
+index 0000000..1f0cc88
+--- /dev/null
++++ b/backend/app/seed_excursions.py
+@@ -0,0 +1,404 @@
++"""
++Контент виртуальных экскурсий: точки (stops) для каждого объекта.
++
++Картинки ищутся по пути /excursions/<slug>/<номер>.jpg — положите файлы
++в frontend/public/excursions/<slug>/1.jpg, 2.jpg, ... и они подхватятся.
++Если файла нет, фронтенд покажет заглушку, экскурсия всё равно работает.
++Можно указать и внешний URL: ключ "image_url" у конкретной точки.
++"""
++
++EXCURSIONS = {
++    "mir-castle": [
++        {
++            "title": "Въездная башня",
++            "description": (
++                "Экскурсия начинается у въездной башни — единственного прохода во "
++                "внутренний двор. Толстые стены и узкие бойницы напоминают, что "
++                "замок строился прежде всего как крепость."
++            ),
++        },
++        {
++            "title": "Внутренний двор",
++            "description": (
++                "Четырёхугольный двор окружён жилыми корпусами. В XVI веке замок "
++                "перешёл к Радзивиллам, и суровая крепость превратилась в "
++                "ренессансную резиденцию с галереями и оштукатуренными фасадами."
++            ),
++        },
++        {
++            "title": "Дворцовые покои",
++            "description": (
++                "В корпусах дворца восстановлены парадные залы, жилые комнаты и "
++                "хозяйственные подвалы. Экспозиция рассказывает о владельцах замка "
++                "— Ильиничах, Радзивиллах и Святополк-Мирских."
++            ),
++        },
++        {
++            "title": "Пруд и парк",
++            "description": (
++                "В конце XIX века у замка разбили пейзажный парк и выкопали пруд. "
++                "Отсюда открывается самый известный вид на замок, отражающийся в воде."
++            ),
++        },
++        {
++            "title": "Часовня-усыпальница Святополк-Мирских",
++            "description": (
++                "В парке стоит часовня-усыпальница последних владельцев замка, "
++                "построенная в начале XX века. Её стройный силуэт хорошо виден "
++                "с берега пруда."
++            ),
++        },
++    ],
++    "nesvizh-castle": [
++        {
++            "title": "Дамба и надвратная башня",
++            "description": (
++                "Замок окружён земляными валами и рвами с водой. Попасть внутрь "
++                "можно только по дамбе через надвратную башню — так было и во "
++                "времена Радзивиллов."
++            ),
++        },
++        {
++            "title": "Парадный двор",
++            "description": (
++                "Строительство замка начал Николай Христофор Радзивилл «Сиротка» "
++                "в 1580-х годах. Корпуса дворца образуют замкнутый двор с "
++                "галереями — сердце резиденции."
++            ),
++        },
++        {
++            "title": "Парадные залы",
++            "description": (
++                "Во дворце восстановлены анфилады залов: Каминный, Охотничий, "
++                "Гетманский, Золотой. Портреты, оружие и мебель показывают быт "
++                "одного из богатейших магнатских родов Европы."
++            ),
++        },
++        {
++            "title": "Парки",
++            "description": (
++                "Вокруг замка на рубеже XIX–XX веков разбили несколько парков — "
++                "Японский, Английский, Старый и Новый. Прогулка по ним — "
++                "отдельная часть экскурсии."
++            ),
++        },
++    ],
++    "nesvizh-body-of-god-church": [
++        {
++            "title": "Фасад",
++            "description": (
++                "Костёл построен в 1587–1593 годах по проекту итальянского "
++                "архитектора Джованни Марии Бернардони. Это одно из первых "
++                "барочных зданий Восточной Европы."
++            ),
++        },
++        {
++            "title": "Интерьер и росписи",
++            "description": (
++                "Своды и стены покрыты росписями XVIII века. Главный алтарь и "
++                "боковые капеллы создают ощущение торжественной глубины."
++            ),
++        },
++        {
++            "title": "Крипта Радзивиллов",
++            "description": (
++                "Под костёлом находится усыпальница рода Радзивиллов — одна из "
++                "крупнейших родовых усыпальниц в Европе. Здесь покоятся десятки "
++                "представителей рода."
++            ),
++        },
++    ],
++    "minsk-red-church": [
++        {
++            "title": "Площадь Независимости",
++            "description": (
++                "Красный костёл — один из символов площади Независимости. "
++                "Его строили в 1905–1910 годах на средства Эдварда Войниловича "
++                "в память о его рано умерших детях — Симоне и Елене."
++            ),
++        },
++        {
++            "title": "Фасад и башни",
++            "description": (
++                "Здание из красного кирпича выполнено в неороманском стиле. "
++                "Высокая главная башня задаёт вертикаль всей площади."
++            ),
++        },
++        {
++            "title": "Скульптура Архангела Михаила",
++            "description": (
++                "Перед входом стоит скульптура Архангела Михаила, поражающего "
++                "дракона, — символ победы добра над злом."
++            ),
++        },
++        {
++            "title": "Колокол Нагасаки",
++            "description": (
++                "Во дворе костёла установлен колокол Нагасаки — копия колокола "
++                "собора, пережившего атомную бомбардировку. Он напоминает о "
++                "жертвах Хиросимы, Нагасаки и Чернобыля."
++            ),
++        },
++    ],
++    "minsk-holy-spirit-cathedral": [
++        {
++            "title": "Белые башни над Немигой",
++            "description": (
++                "Собор стоит на возвышенности Верхнего города. Его белые "
++                "двухбашенные фасады видны издалека — с проспекта Победителей "
++                "и улицы Немига."
++            ),
++        },
++        {
++            "title": "История храма",
++            "description": (
++                "Здание возведено в XVII веке как костёл монастыря бернардинок. "
++                "Позднее его передали православной церкви, сегодня это "
++                "кафедральный собор Минска."
++            ),
++        },
++        {
++            "title": "Минская икона Божией Матери",
++            "description": (
++                "Главная святыня собора — Минская икона Божией Матери. По "
++                "преданию, в XVI веке она приплыла по Свислочи и была найдена "
++                "жителями города."
++            ),
++        },
++    ],
++    "minsk-mary-magdalene-church": [
++        {
++            "title": "Здание храма",
++            "description": (
++                "Каменная церковь построена в середине XIX века и считается одной "
++                "из старейших сохранившихся православных церквей Минска."
++            ),
++        },
++        {
++            "title": "Непростая судьба",
++            "description": (
++                "В советские годы храм был закрыт, а здание использовалось не "
++                "по назначению. Богослужения возобновились после передачи "
++                "церкви верующим в 1990-х."
++            ),
++        },
++        {
++            "title": "Внутреннее убранство",
++            "description": (
++                "Внутри храма — иконостас и иконы, собранные приходом уже после "
++                "восстановления. Камерное пространство располагает к тихому "
++                "созерцанию."
++            ),
++        },
++    ],
++    "khatyn-memorial": [
++        {
++            "title": "«Непокорённый человек»",
++            "description": (
++                "Шестиметровая скульптура изображает Иосифа Каминского — "
++                "единственного взрослого жителя, пережившего сожжение деревни "
++                "22 марта 1943 года. На руках он держит погибшего сына."
++            ),
++        },
++        {
++            "title": "Улица из венцов срубов",
++            "description": (
++                "На месте 26 сожжённых домов стоят бетонные венцы срубов и "
++                "обелиски-трубы. Колокола на трубах звонят каждые 30 секунд — "
++                "в память о 149 погибших жителях, среди которых 75 детей."
++            ),
++        },
++        {
++            "title": "Кладбище деревень",
++            "description": (
++                "185 символических могил белорусских деревень, сожжённых вместе "
++                "с жителями и так и не возродившихся. В каждой урне — земля с "
++                "места деревни; 186-я такая деревня — сама Хатынь."
++            ),
++        },
++        {
++            "title": "Древо жизни",
++            "description": (
++                "На ветвях «Древа жизни» — названия 433 деревень, сожжённых "
++                "вместе с жителями, но восстановленных после войны."
++            ),
++        },
++        {
++            "title": "Вечный огонь",
++            "description": (
++                "Три берёзы и Вечный огонь на месте четвёртой — символ "
++                "огромных потерь Беларуси в годы Великой Отечественной войны."
++            ),
++        },
++    ],
++    "kurgan-slavy": [
++        {
++            "title": "Подъём на курган",
++            "description": (
++                "Мемориал открыт в 1969 году на 21-м километре Московского шоссе. "
++                "К вершине 35-метрового холма ведут две длинные лестницы."
++            ),
++        },
++        {
++            "title": "Четыре штыка",
++            "description": (
++                "Курган венчают четыре штыка, облицованные титаном. Они "
++                "символизируют четыре фронта, освобождавших Беларусь летом "
++                "1944 года в ходе операции «Багратион»."
++            ),
++        },
++        {
++            "title": "Кольцо с мозаикой",
++            "description": (
++                "Основание штыков охватывает кольцо с мозаичным изображением "
++                "воинов и надписью в честь Советской армии — освободительницы."
++            ),
++        },
++    ],
++    "minsk-soviet-soldiers-cemetery": [
++        {
++            "title": "Главная аллея",
++            "description": (
++                "От входа тянется тенистая аллея — тихое место, где в центре "
++                "Минска чувствуется особое настроение памяти."
++            ),
++        },
++        {
++            "title": "Братские захоронения",
++            "description": (
++                "Здесь покоятся воины, погибшие при освобождении Минска и "
++                "умершие в госпиталях. На плитах — имена и годы жизни."
++            ),
++        },
++        {
++            "title": "Минута молчания",
++            "description": (
++                "Экскурсия завершается у памятного знака. Посетители часто "
++                "оставляют здесь цветы — особенно 3 июля, в День Независимости."
++            ),
++        },
++    ],
++    "national-historical-museum": [
++        {
++            "title": "Древнейшая история",
++            "description": (
++                "Экспозиция начинается с археологии: орудия каменного века, "
++                "керамика, украшения первых жителей белорусских земель."
++            ),
++        },
++        {
++            "title": "Средневековье и ВКЛ",
++            "description": (
++                "Залы о Полоцком княжестве и Великом княжестве Литовском: "
++                "оружие, монеты, печати и документы эпохи."
++            ),
++        },
++        {
++            "title": "Быт и культура",
++            "description": (
++                "Народный костюм, предметы быта, иконы и книги — история "
++                "повседневной жизни разных эпох."
++            ),
++        },
++    ],
++    "wwii-museum": [
++        {
++            "title": "Здание музея",
++            "description": (
++                "Новое здание музея открыто в 2014 году. Его архитектура "
++                "напоминает праздничный салют Победы."
++            ),
++        },
++        {
++            "title": "Начало войны",
++            "description": (
++                "Первые залы рассказывают о 22 июня 1941 года, обороне Брестской "
++                "крепости и первых месяцах оккупации."
++            ),
++        },
++        {
++            "title": "Партизанская Беларусь",
++            "description": (
++                "Землянки, самодельное оружие, листовки и личные вещи — "
++                "одна из самых ярких частей экспозиции о партизанском движении."
++            ),
++        },
++        {
++            "title": "Зал Победы",
++            "description": (
++                "Финал экскурсии — светлый зал Победы под стеклянным куполом "
++                "с именами Героев Советского Союза."
++            ),
++        },
++    ],
++    "folk-architecture-museum": [
++        {
++            "title": "Вход в музей под открытым небом",
++            "description": (
++                "Музей в Строчицах собирает настоящие деревенские постройки со "
++                "всей Беларуси. Их перевозили и собирали здесь бревно за бревном."
++            ),
++        },
++        {
++            "title": "Сектор «Поднепровье»",
++            "description": (
++                "Усадьбы, церковь и корчма юго-восточной Беларуси. В хатах "
++                "воссоздана обстановка — печь, лавы, прялки, рушники."
++            ),
++        },
++        {
++            "title": "Сектор «Центральная Беларусь»",
++            "description": (
++                "Крестьянские дворы центрального региона: жилые хаты, амбары, "
++                "клети и хозяйственные постройки."
++            ),
++        },
++        {
++            "title": "Сектор «Поозерье» и ветряки",
++            "description": (
++                "Северный край с его постройками и деревянными ветряными "
++                "мельницами — одним из символов музея."
++            ),
++        },
++    ],
++    "modern-art-museum": [
++        {
++            "title": "Постоянная коллекция",
++            "description": (
++                "Живопись, графика и скульптура белорусских художников XX века — "
++                "от соцреализма до авангардных поисков."
++            ),
++        },
++        {
++            "title": "Современные авторы",
++            "description": (
++                "Работы художников конца XX — начала XXI века: инсталляции, "
++                "фотография, эксперименты с формой и материалом."
++            ),
++        },
++        {
++            "title": "Временные выставки",
++            "description": (
++                "Музей регулярно меняет экспозиции, поэтому каждый визит "
++                "может открыть что-то новое."
++            ),
++        },
++    ],
++}
++
++
++# Демо-история анонимных посетителей, чтобы с первого запуска работал
++# коллаборативный сигнал «часто проходят вместе».
++# Формат: visitor_id -> {"completed": [...slug], "started": [...slug]}
++DEMO_VISITORS = {
++    "demo-castles-1": {"completed": ["mir-castle", "nesvizh-castle", "nesvizh-body-of-god-church"]},
++    "demo-castles-2": {"completed": ["mir-castle", "nesvizh-castle"], "started": ["folk-architecture-museum"]},
++    "demo-castles-3": {"completed": ["nesvizh-castle", "nesvizh-body-of-god-church", "national-historical-museum"]},
++    "demo-memory-1": {"completed": ["khatyn-memorial", "kurgan-slavy", "wwii-museum"]},
++    "demo-memory-2": {"completed": ["khatyn-memorial", "wwii-museum", "minsk-soviet-soldiers-cemetery"]},
++    "demo-memory-3": {"completed": ["kurgan-slavy", "wwii-museum"], "started": ["khatyn-memorial"]},
++    "demo-city-1": {"completed": ["minsk-red-church", "minsk-holy-spirit-cathedral", "national-historical-museum"]},
++    "demo-city-2": {"completed": ["minsk-red-church", "minsk-holy-spirit-cathedral", "minsk-mary-magdalene-church"]},
++    "demo-art-1": {"completed": ["modern-art-museum", "national-historical-museum", "folk-architecture-museum"]},
++    "demo-mixed-1": {"completed": ["mir-castle", "khatyn-memorial", "minsk-red-church"]},
++}
+diff --git a/backend/app/services/recommender.py b/backend/app/services/recommender.py
+new file mode 100644
+index 0000000..41d93f2
+--- /dev/null
++++ b/backend/app/services/recommender.py
+@@ -0,0 +1,253 @@
++"""
++Рекомендательная система по пройденным экскурсиям.
++
++Сигнал — только явные действия посетителя:
++    * нажал «Пройти экскурсию"  -> status = started   (вес 0.5)
++    * дошёл до последней точки    -> status = completed (вес 1.0)
++Клики по карте и открытие карточек не учитываются.
++
++Итоговый балл кандидата — взвешенная сумма четырёх компонент (каждая в [0, 1]):
++
++    score = 0.45 * collaborative   «кто прошёл X, тот прошёл и Y»
++          + 0.30 * category        доля категории в истории посетителя
++          + 0.10 * district        доля района в истории посетителя
++          + 0.15 * geo             близость к уже пройденным объектам
++
++1. Collaborative (item-item). Каждый объект — вектор весов по посетителям.
++   Сходство двух объектов — косинус между векторами. Текущий посетитель
++   из расчёта исключается, чтобы не рекомендовать «сам себе».
++   collaborative(j) = Σ w_i · sim(i, j) / Σ w_i  по пройденным i.
++
++2. Category / district — контентный профиль: какую долю истории
++   составляют экскурсии этой категории / этого района.
++
++3. Geo — exp(-d / 25 км), где d — расстояние до ближайшего пройденного
++   объекта: удобно доехать «по пути».
++
++Если взаимодействий мало, collaborative ≈ 0 и работают контентные сигналы.
++Если истории нет совсем (холодный старт) — отдаём популярные экскурсии.
++
++Начатые, но не завершённые экскурсии тоже попадают в выдачу с бонусом —
++посетителю предлагают их закончить.
++"""
++
++from __future__ import annotations
++
++import math
++from collections import defaultdict
++from dataclasses import dataclass, field
++from typing import Dict, List, Optional
++
++from sqlalchemy.orm import Session, joinedload
++
++from app.models import Attraction, ExcursionProgress
++
++STATUS_WEIGHT = {"started": 0.5, "completed": 1.0}
++
++W_COLLAB = 0.45
++W_CATEGORY = 0.30
++W_DISTRICT = 0.10
++W_GEO = 0.15
++GEO_SCALE_KM = 25.0
++UNFINISHED_BONUS = 0.25
++
++
++@dataclass
++class Recommendation:
++    attraction: Attraction
++    score: float
++    reasons: List[str] = field(default_factory=list)
++
++
++def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
++    r = 6371.0
++    p1, p2 = math.radians(lat1), math.radians(lat2)
++    dp = p2 - p1
++    dl = math.radians(lon2 - lon1)
++    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
++    return 2 * r * math.asin(math.sqrt(a))
++
++
++def plural_excursions(n: int) -> str:
++    if n % 10 == 1 and n % 100 != 11:
++        word = "экскурсию"
++    elif n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
++        word = "экскурсии"
++    else:
++        word = "экскурсий"
++    return f"{n} {word}"
++
++
++def plural_people(n: int) -> str:
++    if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
++        return f"{n} человека"
++    return f"{n} человек"
++
++
++def quoted(name: str) -> str:
++    """«Мирский замок», но не «Мемориальный комплекс «Хатынь»»."""
++    return name if "«" in name else f"«{name}»"
++
++
++def format_km(km: float) -> str:
++    return f"{km:.1f} км" if km < 10 else f"{round(km)} км"
++
++
++def _load_attractions(db: Session) -> Dict[int, Attraction]:
++    rows = (
++        db.query(Attraction)
++        .options(joinedload(Attraction.category), joinedload(Attraction.district))
++        .filter(Attraction.is_published.is_(True))
++        .all()
++    )
++    return {a.id: a for a in rows}
++
++
++def _popular(
++    attractions: Dict[int, Attraction],
++    item_users: Dict[int, Dict[str, float]],
++    exclude: set[int],
++    limit: int,
++) -> List[Recommendation]:
++    """Холодный старт: сортировка по числу посетителей, прошедших экскурсию."""
++    result = []
++    for aid, attraction in attractions.items():
++        if aid in exclude:
++            continue
++        users = item_users.get(aid, {})
++        completed = sum(1 for w in users.values() if w >= STATUS_WEIGHT["completed"])
++        popularity = sum(users.values())
++        reasons = (
++            [f"Популярная экскурсия: её прошли {plural_people(completed)}"]
++            if completed
++            else ["Начните знакомство с этой экскурсии"]
++        )
++        result.append(Recommendation(attraction, popularity, reasons))
++
++    result.sort(key=lambda r: (-r.score, r.attraction.name))
++    top = result[:limit]
++    max_score = max((r.score for r in top), default=0) or 1
++    for r in top:
++        r.score = round(r.score / max_score, 3)
++    return top
++
++
++def recommend(
++    db: Session,
++    visitor_id: Optional[str],
++    limit: int = 5,
++) -> tuple[str, int, List[Recommendation]]:
++    """Возвращает (strategy, based_on, items)."""
++    attractions = _load_attractions(db)
++
++    # ---- матрица «посетитель × объект» ----
++    item_users: Dict[int, Dict[str, float]] = defaultdict(dict)
++    my_items: Dict[int, float] = {}
++    for p in db.query(ExcursionProgress).all():
++        if p.attraction_id not in attractions:
++            continue
++        weight = STATUS_WEIGHT.get(p.status, 0.0)
++        if p.visitor_id == visitor_id:
++            my_items[p.attraction_id] = weight
++        else:
++            item_users[p.attraction_id][p.visitor_id] = weight
++
++    completed_ids = {aid for aid, w in my_items.items() if w >= STATUS_WEIGHT["completed"]}
++    unfinished_ids = set(my_items) - completed_ids
++
++    if not my_items:
++        return "popular", 0, _popular(attractions, item_users, set(), limit)
++
++    # ---- контентный профиль ----
++    total_w = sum(my_items.values())
++    cat_pref: Dict[int, float] = defaultdict(float)
++    cat_count: Dict[int, int] = defaultdict(int)
++    dist_pref: Dict[int, float] = defaultdict(float)
++    for aid, w in my_items.items():
++        a = attractions[aid]
++        cat_pref[a.category_id] += w / total_w
++        dist_pref[a.district_id] += w / total_w
++        cat_count[a.category_id] += 1
++
++    # нормы векторов объектов для косинуса
++    norms = {
++        aid: math.sqrt(sum(w * w for w in users.values()))
++        for aid, users in item_users.items()
++    }
++
++    def similarity(i: int, j: int) -> float:
++        ui, uj = item_users.get(i), item_users.get(j)
++        if not ui or not uj:
++            return 0.0
++        dot = sum(w * uj[u] for u, w in ui.items() if u in uj)
++        return dot / (norms[i] * norms[j]) if dot else 0.0
++
++    recs: List[Recommendation] = []
++    for cid, cand in attractions.items():
++        if cid in completed_ids:
++            continue
++
++        # 1. collaborative
++        collab = 0.0
++        best_src, best_contrib = None, 0.0
++        for aid, w in my_items.items():
++            if aid == cid:
++                continue
++            s = similarity(aid, cid)
++            collab += w * s
++            if w * s > best_contrib:
++                best_src, best_contrib = aid, w * s
++        collab /= total_w
++
++        # 2. content
++        cat = cat_pref.get(cand.category_id, 0.0)
++        dist = dist_pref.get(cand.district_id, 0.0)
++
++        # 3. geo
++        nearest_id, nearest_km = None, float("inf")
++        for aid in my_items:
++            if aid == cid:
++                continue
++            a = attractions[aid]
++            d = haversine_km(
++                float(a.latitude), float(a.longitude),
++                float(cand.latitude), float(cand.longitude),
++            )
++            if d < nearest_km:
++                nearest_id, nearest_km = aid, d
++        geo = math.exp(-nearest_km / GEO_SCALE_KM) if nearest_id else 0.0
++
++        score = W_COLLAB * collab + W_CATEGORY * cat + W_DISTRICT * dist + W_GEO * geo
++
++        # ---- объяснения ----
++        reasons: List[str] = []
++        if cid in unfinished_ids:
++            score += UNFINISHED_BONUS
++            reasons.append("Вы начали эту экскурсию, но не завершили")
++        if best_src is not None and collab >= 0.1:
++            co_visitors = len(
++                set(item_users.get(best_src, {})) & set(item_users.get(cid, {}))
++            )
++            src_name = quoted(attractions[best_src].name)
++            reasons.append(
++                f"Её часто проходят те, кто прошёл {src_name}"
++                if co_visitors >= 2
++                else f"Её проходили и те, кто прошёл {src_name}"
++            )
++        if cat > 0 and cat_count[cand.category_id] - (1 if cid in my_items else 0) > 0:
++            n = cat_count[cand.category_id] - (1 if cid in my_items else 0)
++            reasons.append(
++                f"Вы прошли {plural_excursions(n)} в категории {quoted(cand.category.name)}"
++            )
++        if nearest_id is not None and nearest_km <= 15:
++            reasons.append(
++                f"Рядом с уже пройденным — {quoted(attractions[nearest_id].name)} "
++                f"({format_km(nearest_km)})"
++            )
++        if not reasons:
++            reasons.append("Новое направление для вас")
++
++        recs.append(Recommendation(cand, round(score, 3), reasons[:2]))
++
++    recs.sort(key=lambda r: (-r.score, r.attraction.name))
++    return "personal", len(my_items), recs[:limit]
+diff --git a/backend/app/visitor.py b/backend/app/visitor.py
+new file mode 100644
+index 0000000..8e23475
+--- /dev/null
++++ b/backend/app/visitor.py
+@@ -0,0 +1,42 @@
++"""
++Анонимная идентификация посетителя.
++
++Регистрации в проекте нет, поэтому фронтенд один раз генерирует UUID,
++хранит его в localStorage и передаёт в каждом запросе заголовком
++`X-Visitor-Id`. По этому ID backend ведёт историю пройденных экскурсий.
++"""
++
++import re
++from typing import Optional
++
++from fastapi import Header, HTTPException
++
++VISITOR_HEADER = "X-Visitor-Id"
++_VISITOR_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
++
++
++def _validate(value: Optional[str]) -> Optional[str]:
++    if value is None:
++        return None
++    value = value.strip()
++    if not _VISITOR_RE.match(value):
++        raise HTTPException(status_code=400, detail="Некорректный X-Visitor-Id")
++    return value
++
++
++def optional_visitor(
++    x_visitor_id: Optional[str] = Header(None, alias=VISITOR_HEADER),
++) -> Optional[str]:
++    return _validate(x_visitor_id)
++
++
++def required_visitor(
++    x_visitor_id: Optional[str] = Header(None, alias=VISITOR_HEADER),
++) -> str:
++    visitor_id = _validate(x_visitor_id)
++    if not visitor_id:
++        raise HTTPException(
++            status_code=400,
++            detail=f"Нужен заголовок {VISITOR_HEADER}",
++        )
++    return visitor_id
+diff --git a/frontend/package-lock.json b/frontend/package-lock.json
+index 0bb22c5..0884423 100644
+--- a/frontend/package-lock.json
++++ b/frontend/package-lock.json
+@@ -16,6 +16,7 @@
+       },
+       "devDependencies": {
+         "@types/leaflet": "^1.9.12",
++        "@types/node": "^20.19.43",
+         "@types/react": "^18.3.10",
+         "@types/react-dom": "^18.3.0",
+         "@vitejs/plugin-react": "^4.3.2",
+@@ -1200,6 +1201,16 @@
+         "@types/geojson": "*"
+       }
+     },
++    "node_modules/@types/node": {
++      "version": "20.19.43",
++      "resolved": "https://registry.npmjs.org/@types/node/-/node-20.19.43.tgz",
++      "integrity": "sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "undici-types": "~6.21.0"
++      }
++    },
+     "node_modules/@types/prop-types": {
+       "version": "15.7.15",
+       "resolved": "https://registry.npmjs.org/@types/prop-types/-/prop-types-15.7.15.tgz",
+@@ -2006,6 +2017,13 @@
+         "node": ">=14.17"
+       }
+     },
++    "node_modules/undici-types": {
++      "version": "6.21.0",
++      "resolved": "https://registry.npmjs.org/undici-types/-/undici-types-6.21.0.tgz",
++      "integrity": "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==",
++      "dev": true,
++      "license": "MIT"
++    },
+     "node_modules/update-browserslist-db": {
+       "version": "1.3.4",
+       "resolved": "https://registry.npmjs.org/update-browserslist-db/-/update-browserslist-db-1.3.4.tgz",
+diff --git a/frontend/package.json b/frontend/package.json
+index 01becd3..322cc17 100644
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -17,6 +17,7 @@
+   },
+   "devDependencies": {
+     "@types/leaflet": "^1.9.12",
++    "@types/node": "^20.19.43",
+     "@types/react": "^18.3.10",
+     "@types/react-dom": "^18.3.0",
+     "@vitejs/plugin-react": "^4.3.2",
+diff --git a/frontend/public/excursions/README.md b/frontend/public/excursions/README.md
+new file mode 100644
+index 0000000..8718549
+--- /dev/null
++++ b/frontend/public/excursions/README.md
+@@ -0,0 +1,13 @@
++# Картинки для точек экскурсий
++
++Положите фото сюда по схеме `<slug-объекта>/<номер-точки>.jpg`, например:
++
++```
++excursions/mir-castle/1.jpg     — Въездная башня
++excursions/mir-castle/2.jpg     — Внутренний двор
++excursions/khatyn-memorial/1.jpg — «Непокорённый человек»
++```
++
++Список объектов, точек и их порядок — в `backend/app/seed_excursions.py`.
++Если файла нет, в интерфейсе показывается заглушка — экскурсия всё равно работает.
++Вместо локального файла можно указать внешний URL: ключ `"image_url"` у точки в `seed_excursions.py`.
+diff --git a/frontend/src/api/client.ts b/frontend/src/api/client.ts
+index 3ba2c16..cbea361 100644
+--- a/frontend/src/api/client.ts
++++ b/frontend/src/api/client.ts
+@@ -5,14 +5,23 @@ import type {
+   AttractionFilters,
+   Category,
+   District,
++  Excursion,
++  ExcursionProgress,
++  RecommendationsResponse,
+   RouteRequest,
+   RouteResponse,
+ } from "../types";
++import { getVisitorId } from "../utils/visitor";
+ 
+ const api = axios.create({
+   baseURL: "/api",
+ });
+ 
++api.interceptors.request.use((config) => {
++  config.headers.set("X-Visitor-Id", getVisitorId());
++  return config;
++});
++
+ export async function fetchCategories(): Promise<Category[]> {
+   const response = await api.get<Category[]>("/categories");
+   return response.data;
+@@ -66,3 +75,42 @@ export async function buildRoute(payload: RouteRequest): Promise<RouteResponse>
+   const response = await api.post<RouteResponse>("/route", payload);
+   return response.data;
+ }
++
++export async function fetchExcursion(attractionId: number): Promise<Excursion> {
++  const response = await api.get<Excursion>(
++    `/attractions/${attractionId}/excursion`
++  );
++  return response.data;
++}
++
++export async function startExcursion(
++  attractionId: number
++): Promise<ExcursionProgress> {
++  const response = await api.post<ExcursionProgress>(
++    `/attractions/${attractionId}/excursion/start`
++  );
++  return response.data;
++}
++
++export async function completeExcursion(
++  attractionId: number
++): Promise<ExcursionProgress> {
++  const response = await api.post<ExcursionProgress>(
++    `/attractions/${attractionId}/excursion/complete`
++  );
++  return response.data;
++}
++
++export async function fetchExcursionHistory(): Promise<ExcursionProgress[]> {
++  const response = await api.get<ExcursionProgress[]>("/excursions/history");
++  return response.data;
++}
++
++export async function fetchRecommendations(
++  limit = 5
++): Promise<RecommendationsResponse> {
++  const response = await api.get<RecommendationsResponse>("/recommendations", {
++    params: { limit },
++  });
++  return response.data;
++}
+diff --git a/frontend/src/components/AttractionCard.tsx b/frontend/src/components/AttractionCard.tsx
+index 6131623..8da2016 100644
+--- a/frontend/src/components/AttractionCard.tsx
++++ b/frontend/src/components/AttractionCard.tsx
+@@ -1,10 +1,12 @@
+-import type { AttractionDetail } from "../types";
++import type { AttractionDetail, ExcursionStatus } from "../types";
+ import { categoryEmoji } from "../utils/format";
+ 
+ interface AttractionCardProps {
+   attraction: AttractionDetail | null;
+   loading: boolean;
+   onClose: () => void;
++  excursionStatus: ExcursionStatus | null;
++  onStartExcursion: () => void;
+   onBuildRoute: () => void;
+   onShowSimilar: () => void;
+   onShowNearby: () => void;
+@@ -15,6 +17,8 @@ export default function AttractionCard({
+   attraction,
+   loading,
+   onClose,
++  excursionStatus,
++  onStartExcursion,
+   onBuildRoute,
+   onShowSimilar,
+   onShowNearby,
+@@ -57,6 +61,14 @@ export default function AttractionCard({
+           {Number(attraction.latitude).toFixed(5)},{" "}
+           {Number(attraction.longitude).toFixed(5)}
+         </div>
++        {excursionStatus && (
++          <div>
++            <span className="meta-label">Экскурсия:</span>{" "}
++            <span className={`excursion-badge ${excursionStatus}`}>
++              {excursionStatus === "completed" ? "✓ пройдена" : "начата"}
++            </span>
++          </div>
++        )}
+       </div>
+ 
+       {!attraction.is_accessible && (
+@@ -80,6 +92,17 @@ export default function AttractionCard({
+       )}
+ 
+       <div className="card-actions">
++        <button
++          type="button"
++          className="primary-button excursion-button"
++          onClick={onStartExcursion}
++        >
++          {excursionStatus === "completed"
++            ? "Пройти экскурсию ещё раз"
++            : excursionStatus === "started"
++            ? "Продолжить экскурсию"
++            : "Пройти экскурсию"}
++        </button>
+         <button type="button" className="primary-button" onClick={onBuildRoute}>
+           Построить маршрут
+         </button>
+diff --git a/frontend/src/components/AttractionList.tsx b/frontend/src/components/AttractionList.tsx
+index f9ef258..d8a127e 100644
+--- a/frontend/src/components/AttractionList.tsx
++++ b/frontend/src/components/AttractionList.tsx
+@@ -1,4 +1,4 @@
+-import type { AttractionBrief } from "../types";
++import type { AttractionBrief, ExcursionStatus } from "../types";
+ import { formatDistance } from "../utils/format";
+ 
+ interface AttractionListProps {
+@@ -7,6 +7,7 @@ interface AttractionListProps {
+   loading: boolean;
+   error: string | null;
+   selectedId: number | null;
++  progress: Record<number, ExcursionStatus>;
+   onSelect: (item: AttractionBrief) => void;
+ }
+ 
+@@ -16,6 +17,7 @@ export default function AttractionList({
+   loading,
+   error,
+   selectedId,
++  progress,
+   onSelect,
+ }: AttractionListProps) {
+   return (
+@@ -39,7 +41,14 @@ export default function AttractionList({
+             className={`list-item ${selectedId === item.id ? "selected" : ""}`}
+             onClick={() => onSelect(item)}
+           >
+-            <div className="list-item-title">{item.name}</div>
++            <div className="list-item-title">
++              {item.name}
++              {progress[item.id] === "completed" && (
++                <span className="excursion-badge completed" title="Экскурсия пройдена">
++                  ✓
++                </span>
++              )}
++            </div>
+             <div className="list-item-meta">
+               <span>{item.category.name}</span>
+               <span>•</span>
+diff --git a/frontend/src/components/ExcursionView.tsx b/frontend/src/components/ExcursionView.tsx
+new file mode 100644
+index 0000000..213622e
+--- /dev/null
++++ b/frontend/src/components/ExcursionView.tsx
+@@ -0,0 +1,200 @@
++import { useEffect, useState } from "react";
++import type {
++  AttractionBrief,
++  Excursion,
++  RecommendationsResponse,
++} from "../types";
++import { categoryEmoji } from "../utils/format";
++import Recommendations from "./Recommendations";
++import StopImage from "./StopImage";
++
++interface ExcursionViewProps {
++  excursion: Excursion | null;
++  loading: boolean;
++  error: string | null;
++  onClose: () => void;
++  onComplete: () => Promise<void>;
++  recommendations: RecommendationsResponse | null;
++  recommendationsLoading: boolean;
++  onSelectRecommendation: (item: AttractionBrief) => void;
++}
++
++export default function ExcursionView({
++  excursion,
++  loading,
++  error,
++  onClose,
++  onComplete,
++  recommendations,
++  recommendationsLoading,
++  onSelectRecommendation,
++}: ExcursionViewProps) {
++  const [step, setStep] = useState(0);
++  const [finished, setFinished] = useState(false);
++  const [completing, setCompleting] = useState(false);
++  const [completeError, setCompleteError] = useState<string | null>(null);
++
++  useEffect(() => {
++    setStep(0);
++    setFinished(false);
++    setCompleteError(null);
++  }, [excursion?.attraction_id]);
++
++  if (loading) {
++    return <div className="card">Загрузка экскурсии...</div>;
++  }
++
++  if (error || !excursion) {
++    return (
++      <div className="card">
++        <p className="error-text">{error || "Экскурсия не найдена"}</p>
++        <button type="button" className="secondary-button" onClick={onClose}>
++          Назад к карточке
++        </button>
++      </div>
++    );
++  }
++
++  const stops = excursion.stops;
++  const header = (
++    <div className="card-header">
++      <div>
++        <div className="excursion-label">Виртуальная экскурсия</div>
++        <h2>{excursion.attraction_name}</h2>
++      </div>
++      <button type="button" className="icon-button" onClick={onClose}>
++        ×
++      </button>
++    </div>
++  );
++
++  if (stops.length === 0) {
++    return (
++      <div className="card">
++        {header}
++        <p className="hint">Для этого объекта экскурсия пока не подготовлена.</p>
++      </div>
++    );
++  }
++
++  async function handleFinish() {
++    setCompleting(true);
++    setCompleteError(null);
++    try {
++      await onComplete();
++      setFinished(true);
++    } catch (err: any) {
++      setCompleteError(
++        err?.response?.data?.detail || "Не удалось сохранить прохождение"
++      );
++    } finally {
++      setCompleting(false);
++    }
++  }
++
++  if (finished) {
++    return (
++      <>
++        <div className="card">
++          {header}
++          <div className="excursion-done">
++            <div className="excursion-done-icon">🎉</div>
++            <strong>Экскурсия пройдена!</strong>
++            <p>Вы посмотрели все точки: {stops.length}.</p>
++          </div>
++          <div className="card-actions">
++            <button
++              type="button"
++              className="secondary-button"
++              onClick={() => {
++                setStep(0);
++                setFinished(false);
++              }}
++            >
++              Пройти ещё раз
++            </button>
++            <button type="button" className="secondary-button" onClick={onClose}>
++              Вернуться к карточке
++            </button>
++          </div>
++        </div>
++        <Recommendations
++          title="Что пройти дальше"
++          data={recommendations}
++          loading={recommendationsLoading}
++          onSelect={onSelectRecommendation}
++        />
++      </>
++    );
++  }
++
++  const stop = stops[step];
++  const isLast = step === stops.length - 1;
++
++  return (
++    <div className="card">
++      {header}
++
++      <div className="excursion-progress">
++        <span>
++          Точка {step + 1} из {stops.length}
++        </span>
++        <div className="excursion-dots">
++          {stops.map((s, index) => (
++            <button
++              key={s.id}
++              type="button"
++              className={`excursion-dot ${index === step ? "active" : ""} ${
++                index < step ? "done" : ""
++              }`}
++              onClick={() => setStep(index)}
++              aria-label={`Точка ${index + 1}: ${s.title}`}
++            />
++          ))}
++        </div>
++      </div>
++
++      <div className="card-photo">
++        <StopImage
++          src={stop.image_url}
++          alt={stop.title}
++          fallback={categoryEmoji(excursion.category.slug)}
++        />
++      </div>
++
++      <h3 className="excursion-stop-title">{stop.title}</h3>
++      <p className="card-description">{stop.description}</p>
++
++      {completeError && <p className="error-text">{completeError}</p>}
++
++      <div className="excursion-nav">
++        <button
++          type="button"
++          className="secondary-button"
++          onClick={() => setStep((s) => s - 1)}
++          disabled={step === 0}
++        >
++          ← Назад
++        </button>
++        {isLast ? (
++          <button
++            type="button"
++            className="primary-button"
++            onClick={handleFinish}
++            disabled={completing}
++          >
++            {completing ? "Сохраняем..." : "Завершить экскурсию"}
++          </button>
++        ) : (
++          <button
++            type="button"
++            className="primary-button"
++            onClick={() => setStep((s) => s + 1)}
++          >
++            Далее →
++          </button>
++        )}
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/components/Recommendations.tsx b/frontend/src/components/Recommendations.tsx
+new file mode 100644
+index 0000000..33a43d3
+--- /dev/null
++++ b/frontend/src/components/Recommendations.tsx
+@@ -0,0 +1,56 @@
++import type { AttractionBrief, RecommendationsResponse } from "../types";
++
++interface RecommendationsProps {
++  data: RecommendationsResponse | null;
++  loading: boolean;
++  title?: string;
++  onSelect: (item: AttractionBrief) => void;
++}
++
++export default function Recommendations({
++  data,
++  loading,
++  title,
++  onSelect,
++}: RecommendationsProps) {
++  const personal = data?.strategy === "personal";
++  const heading =
++    title || (personal ? "Рекомендуем вам" : "Популярные экскурсии");
++
++  return (
++    <div className="related-list">
++      <h3>{heading}</h3>
++      <p className="hint rec-subtitle">
++        {personal
++          ? "Подобрано по экскурсиям, которые вы проходили."
++          : "Пройдите первую экскурсию — и рекомендации станут персональными."}
++      </p>
++
++      {loading && !data && <p className="hint">Загрузка...</p>}
++      {data && data.items.length === 0 && (
++        <p className="hint">Вы прошли все экскурсии!</p>
++      )}
++
++      <div className="related-items">
++        {data?.items.map((item) => (
++          <button
++            key={item.attraction.id}
++            type="button"
++            className="related-item"
++            onClick={() => onSelect(item.attraction)}
++          >
++            <div className="related-item-title">{item.attraction.name}</div>
++            <div className="related-item-meta">
++              {item.attraction.category.name} • {item.attraction.district.name}
++            </div>
++            <ul className="rec-reasons">
++              {item.reasons.map((reason) => (
++                <li key={reason}>{reason}</li>
++              ))}
++            </ul>
++          </button>
++        ))}
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/components/StopImage.tsx b/frontend/src/components/StopImage.tsx
+new file mode 100644
+index 0000000..b1f6710
+--- /dev/null
++++ b/frontend/src/components/StopImage.tsx
+@@ -0,0 +1,26 @@
++import { useEffect, useState } from "react";
++
++interface StopImageProps {
++  src?: string | null;
++  alt: string;
++  fallback: string;
++}
++
++/** Картинка точки экскурсии; если файла нет — аккуратная заглушка. */
++export default function StopImage({ src, alt, fallback }: StopImageProps) {
++  const [failed, setFailed] = useState(false);
++
++  useEffect(() => {
++    setFailed(false);
++  }, [src]);
++
++  if (!src || failed) {
++    return (
++      <div className="photo-placeholder excursion-placeholder">
++        <span>{fallback}</span>
++      </div>
++    );
++  }
++
++  return <img src={src} alt={alt} onError={() => setFailed(true)} />;
++}
+diff --git a/frontend/src/index.css b/frontend/src/index.css
+index 189e208..42c8c53 100644
+--- a/frontend/src/index.css
++++ b/frontend/src/index.css
+@@ -477,3 +477,125 @@ input {
+     flex-direction: column;
+   }
+ }
++
++/* ---------- Виртуальная экскурсия ---------- */
++
++.excursion-button {
++  background: #059669;
++}
++
++.excursion-button:hover {
++  background: #047857;
++}
++
++.primary-button:disabled {
++  opacity: 0.6;
++  cursor: not-allowed;
++}
++
++.excursion-label {
++  font-size: 12px;
++  font-weight: 700;
++  color: #059669;
++  text-transform: uppercase;
++  margin-bottom: 4px;
++}
++
++.excursion-progress {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 12px;
++  margin-top: 12px;
++  font-size: 13px;
++  color: #6b7280;
++  font-weight: 600;
++}
++
++.excursion-dots {
++  display: flex;
++  gap: 6px;
++}
++
++.excursion-dot {
++  width: 10px;
++  height: 10px;
++  padding: 0;
++  border-radius: 999px;
++  border: 0;
++  background: #e5e7eb;
++  cursor: pointer;
++}
++
++.excursion-dot.done {
++  background: #a7f3d0;
++}
++
++.excursion-dot.active {
++  background: #059669;
++}
++
++.excursion-placeholder {
++  background: linear-gradient(135deg, #ecfdf5, #eef2ff);
++}
++
++.excursion-stop-title {
++  margin: 0;
++  font-size: 17px;
++}
++
++.excursion-nav {
++  display: grid;
++  grid-template-columns: 1fr 1fr;
++  gap: 8px;
++  margin-top: 12px;
++}
++
++.excursion-done {
++  text-align: center;
++  padding: 20px 8px 8px;
++}
++
++.excursion-done-icon {
++  font-size: 44px;
++  margin-bottom: 8px;
++}
++
++.excursion-done p {
++  margin: 6px 0 0;
++  color: #6b7280;
++  font-size: 14px;
++}
++
++.excursion-badge {
++  display: inline-block;
++  margin-left: 6px;
++  padding: 1px 8px;
++  border-radius: 999px;
++  font-size: 12px;
++  font-weight: 700;
++  background: #fef3c7;
++  color: #92400e;
++}
++
++.excursion-badge.completed {
++  background: #d1fae5;
++  color: #065f46;
++}
++
++/* ---------- Рекомендации ---------- */
++
++.rec-subtitle {
++  margin: -8px 0 12px;
++}
++
++.rec-reasons {
++  margin: 0;
++  padding-left: 16px;
++  font-size: 12px;
++  color: #047857;
++}
++
++.rec-reasons li + li {
++  margin-top: 2px;
++}
+diff --git a/frontend/src/pages/MapPage.tsx b/frontend/src/pages/MapPage.tsx
+index 4552058..e09bd2c 100644
+--- a/frontend/src/pages/MapPage.tsx
++++ b/frontend/src/pages/MapPage.tsx
+@@ -1,18 +1,25 @@
+ import { useEffect, useState } from "react";
+ import {
+   buildRoute as buildRouteApi,
++  completeExcursion,
+   fetchAttraction,
+   fetchAttractions,
+   fetchCategories,
+   fetchDistricts,
++  fetchExcursion,
++  fetchExcursionHistory,
+   fetchNearbyAttractions,
++  fetchRecommendations,
+   fetchSimilarAttractions,
++  startExcursion,
+ } from "../api/client";
+ import AttractionCard from "../components/AttractionCard";
+ import AttractionList from "../components/AttractionList";
++import ExcursionView from "../components/ExcursionView";
+ import FilterPanel from "../components/FilterPanel";
+ import Legend from "../components/Legend";
+ import MapView from "../components/MapView";
++import Recommendations from "../components/Recommendations";
+ import RelatedList from "../components/RelatedList";
+ import RoutePanel from "../components/RoutePanel";
+ import type {
+@@ -21,6 +28,9 @@ import type {
+   AttractionFilters,
+   Category,
+   District,
++  Excursion,
++  ExcursionStatus,
++  RecommendationsResponse,
+   RouteResponse,
+ } from "../types";
+ 
+@@ -62,6 +72,42 @@ export default function MapPage() {
+   const [relatedLoading, setRelatedLoading] = useState(false);
+   const [relatedError, setRelatedError] = useState<string | null>(null);
+ 
++  // --- виртуальная экскурсия ---
++  const [excursionOpen, setExcursionOpen] = useState(false);
++  const [excursion, setExcursion] = useState<Excursion | null>(null);
++  const [excursionLoading, setExcursionLoading] = useState(false);
++  const [excursionError, setExcursionError] = useState<string | null>(null);
++
++  // --- история посетителя и рекомендации ---
++  const [progress, setProgress] = useState<Record<number, ExcursionStatus>>({});
++  const [recommendations, setRecommendations] =
++    useState<RecommendationsResponse | null>(null);
++  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
++
++  async function loadPersonalData() {
++    setRecommendationsLoading(true);
++    try {
++      const [history, recs] = await Promise.all([
++        fetchExcursionHistory(),
++        fetchRecommendations(5),
++      ]);
++      const map: Record<number, ExcursionStatus> = {};
++      history.forEach((item) => {
++        map[item.attraction_id] = item.status;
++      });
++      setProgress(map);
++      setRecommendations(recs);
++    } catch {
++      // рекомендации — необязательная часть интерфейса
++    } finally {
++      setRecommendationsLoading(false);
++    }
++  }
++
++  useEffect(() => {
++    loadPersonalData();
++  }, []);
++
+   useEffect(() => {
+     async function loadStaticData() {
+       try {
+@@ -149,6 +195,9 @@ export default function MapPage() {
+   useEffect(() => {
+     setRouteResult(null);
+     setRouteError(null);
++    setExcursionOpen(false);
++    setExcursion(null);
++    setExcursionError(null);
+     setRelated([]);
+     setRelatedTitle(null);
+     setRelatedError(null);
+@@ -267,6 +316,43 @@ export default function MapPage() {
+     }
+   }
+ 
++  /** Кнопка «Пройти экскурсию» — именно она пишет событие для рекомендаций. */
++  async function handleStartExcursion() {
++    if (!selected) return;
++    const attractionId = selected.id;
++
++    setExcursionOpen(true);
++    setExcursionLoading(true);
++    setExcursionError(null);
++
++    try {
++      const [data] = await Promise.all([
++        fetchExcursion(attractionId),
++        startExcursion(attractionId),
++      ]);
++      setExcursion(data);
++      setProgress((prev) =>
++        prev[attractionId] === "completed"
++          ? prev
++          : { ...prev, [attractionId]: "started" }
++      );
++      loadPersonalData();
++    } catch (error: any) {
++      setExcursionError(
++        error?.response?.data?.detail || "Не удалось загрузить экскурсию"
++      );
++    } finally {
++      setExcursionLoading(false);
++    }
++  }
++
++  async function handleCompleteExcursion() {
++    if (!excursion) return;
++    await completeExcursion(excursion.attraction_id);
++    setProgress((prev) => ({ ...prev, [excursion.attraction_id]: "completed" }));
++    await loadPersonalData();
++  }
++
+   function clearRoute() {
+     setRouteResult(null);
+     setRouteError(null);
+@@ -350,6 +436,7 @@ export default function MapPage() {
+             loading={loadingList}
+             error={listError}
+             selectedId={selected?.id ?? null}
++            progress={progress}
+             onSelect={setSelected}
+           />
+         </aside>
+@@ -366,16 +453,38 @@ export default function MapPage() {
+ 
+         <aside className="right-panel">
+           {!selected && (
+-            <div className="empty-state">
+-              Кликните по маркеру на карте или выберите объект в списке слева.
+-            </div>
++            <>
++              <div className="empty-state">
++                Кликните по маркеру на карте или выберите объект в списке слева.
++              </div>
++              <Recommendations
++                data={recommendations}
++                loading={recommendationsLoading}
++                onSelect={setSelected}
++              />
++            </>
++          )}
++
++          {selected && excursionOpen && (
++            <ExcursionView
++              excursion={excursion}
++              loading={excursionLoading}
++              error={excursionError}
++              onClose={() => setExcursionOpen(false)}
++              onComplete={handleCompleteExcursion}
++              recommendations={recommendations}
++              recommendationsLoading={recommendationsLoading}
++              onSelectRecommendation={setSelected}
++            />
+           )}
+ 
+-          {selected && (
++          {selected && !excursionOpen && (
+             <AttractionCard
+               attraction={detail}
+               loading={detailLoading}
+               onClose={() => setSelected(null)}
++              excursionStatus={progress[selected.id] ?? null}
++              onStartExcursion={handleStartExcursion}
+               onBuildRoute={handleBuildRoute}
+               onShowSimilar={handleShowSimilar}
+               onShowNearby={handleShowNearby}
+@@ -383,16 +492,18 @@ export default function MapPage() {
+             />
+           )}
+ 
+-          <RoutePanel
+-            originLabel={originLabel}
+-            destinationName={selected?.name || ""}
+-            result={routeResult}
+-            loading={routeLoading}
+-            error={routeError}
+-            onClear={clearRoute}
+-          />
++          {!excursionOpen && (
++            <RoutePanel
++              originLabel={originLabel}
++              destinationName={selected?.name || ""}
++              result={routeResult}
++              loading={routeLoading}
++              error={routeError}
++              onClear={clearRoute}
++            />
++          )}
+ 
+-          {relatedTitle && (
++          {!excursionOpen && relatedTitle && (
+             <RelatedList
+               title={relatedTitle}
+               items={related}
+diff --git a/frontend/src/types/index.ts b/frontend/src/types/index.ts
+index 6dae027..ed10990 100644
+--- a/frontend/src/types/index.ts
++++ b/frontend/src/types/index.ts
+@@ -74,3 +74,40 @@ export interface AttractionFilters {
+   radius_km?: number;
+   limit?: number;
+ }
++
++export type ExcursionStatus = "started" | "completed";
++
++export interface ExcursionStop {
++  id: number;
++  position: number;
++  title: string;
++  description: string;
++  image_url?: string | null;
++}
++
++export interface Excursion {
++  attraction_id: number;
++  attraction_name: string;
++  category: CategoryBrief;
++  stops: ExcursionStop[];
++  status: ExcursionStatus | null;
++}
++
++export interface ExcursionProgress {
++  attraction_id: number;
++  status: ExcursionStatus;
++  started_at: string;
++  completed_at?: string | null;
++}
++
++export interface RecommendationItem {
++  attraction: AttractionBrief;
++  score: number;
++  reasons: string[];
++}
++
++export interface RecommendationsResponse {
++  strategy: "personal" | "popular";
++  based_on: number;
++  items: RecommendationItem[];
++}
+diff --git a/frontend/src/utils/visitor.ts b/frontend/src/utils/visitor.ts
+new file mode 100644
+index 0000000..af7ca2e
+--- /dev/null
++++ b/frontend/src/utils/visitor.ts
+@@ -0,0 +1,29 @@
++/**
++ * Анонимный ID посетителя. Регистрации нет, поэтому история пройденных
++ * экскурсий привязывается к браузеру: ID создаётся один раз и хранится
++ * в localStorage. Передаётся на backend заголовком X-Visitor-Id.
++ */
++const STORAGE_KEY = "ve_visitor_id";
++let memoryId: string | null = null;
++
++function generateId(): string {
++  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
++    return crypto.randomUUID();
++  }
++  return `v-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
++}
++
++export function getVisitorId(): string {
++  try {
++    let id = localStorage.getItem(STORAGE_KEY);
++    if (!id) {
++      id = generateId();
++      localStorage.setItem(STORAGE_KEY, id);
++    }
++    return id;
++  } catch {
++    // localStorage недоступен (приватный режим и т.п.) — живём в памяти
++    memoryId = memoryId || generateId();
++    return memoryId;
++  }
++}
+-- 
+2.43.0
+
