@@ -7,6 +7,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import relationship
@@ -67,3 +68,61 @@ class Attraction(Base):
 
     category = relationship("Category", back_populates="attractions")
     district = relationship("District", back_populates="attractions")
+    stops = relationship(
+        "ExcursionStop",
+        back_populates="attraction",
+        order_by="ExcursionStop.position",
+        cascade="all, delete-orphan",
+    )
+
+
+class ExcursionStop(Base):
+    """Точка виртуальной экскурсии по объекту: картинка + мини-описание."""
+
+    __tablename__ = "excursion_stops"
+    __table_args__ = (
+        UniqueConstraint("attraction_id", "position", name="uq_stop_position"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    attraction_id = Column(
+        Integer,
+        ForeignKey("attractions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    position = Column(Integer, nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    image_url = Column(Text, nullable=True)
+
+    attraction = relationship("Attraction", back_populates="stops")
+
+
+class ExcursionProgress(Base):
+    """
+    Факт прохождения экскурсии анонимным посетителем.
+
+    Запись создаётся по кнопке «Пройти экскурсию» (status = started)
+    и обновляется на последнем шаге (status = completed).
+    Клики по маркерам на карте сюда НЕ попадают.
+    """
+
+    __tablename__ = "excursion_progress"
+    __table_args__ = (
+        UniqueConstraint("visitor_id", "attraction_id", name="uq_visitor_attraction"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    visitor_id = Column(String(64), nullable=False, index=True)
+    attraction_id = Column(
+        Integer,
+        ForeignKey("attractions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    status = Column(String(20), nullable=False, default="started")  # started / completed
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    attraction = relationship("Attraction")

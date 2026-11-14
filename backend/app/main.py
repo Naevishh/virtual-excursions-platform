@@ -2,7 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import create_db_and_tables
-from app.routers import attractions, categories, districts, route
+from app.routers import (
+    attractions,
+    categories,
+    districts,
+    excursions,
+    recommendations,
+    route,
+)
 
 create_db_and_tables()
 
@@ -44,6 +51,16 @@ app.include_router(
     districts.router,
     prefix="/api/districts",
     tags=["districts"],
+)
+app.include_router(
+    excursions.router,
+    prefix="/api",
+    tags=["excursions"],
+)
+app.include_router(
+    recommendations.router,
+    prefix="/api/recommendations",
+    tags=["recommendations"],
 )
 app.include_router(
     attractions.router,

@@ -1,5 +1,14 @@
 from app.database import SessionLocal, create_db_and_tables
-from app.models import Attraction, Category, District
+from datetime import datetime, timezone
+
+from app.models import (
+    Attraction,
+    Category,
+    District,
+    ExcursionProgress,
+    ExcursionStop,
+)
+from app.seed_excursions import DEMO_VISITORS, EXCURSIONS
 
 
 CATEGORIES = [
@@ -233,6 +242,8 @@ def seed():
     create_db_and_tables()
 
     with SessionLocal() as session:
+        session.query(ExcursionProgress).delete()
+        session.query(ExcursionStop).delete()
         session.query(Attraction).delete()
         session.query(District).delete()
         session.query(Category).delete()
@@ -252,6 +263,7 @@ def seed():
             session.flush()
             district_map[item["slug"]] = obj.id
 
+        attraction_map = {}
         for item in ATTRACTIONS:
             obj = Attraction(
                 name=item["name"],
@@ -268,6 +280,36 @@ def seed():
                 is_published=True,
             )
             session.add(obj)
+            session.flush()
+            attraction_map[item["slug"]] = obj.id
+
+            for position, stop in enumerate(EXCURSIONS.get(item["slug"], []), start=1):
+                session.add(
+                    ExcursionStop(
+                        attraction_id=obj.id,
+                        position=position,
+                        title=stop["title"],
+                        description=stop["description"],
+                        image_url=stop.get(
+                            "image_url", f"/excursions/{item['slug']}/{position}.jpg"
+                        ),
+                    )
+                )
+
+        now = datetime.now(timezone.utc)
+        progress_count = 0
+        for visitor_id, history in DEMO_VISITORS.items():
+            for status in ("completed", "started"):
+                for slug in history.get(status, []):
+                    session.add(
+                        ExcursionProgress(
+                            visitor_id=visitor_id,
+                            attraction_id=attraction_map[slug],
+                            status=status,
+                            completed_at=now if status == "completed" else None,
+                        )
+                    )
+                    progress_count += 1
 
         session.commit()
 
@@ -275,6 +317,8 @@ def seed():
     print(f"Categories: {len(CATEGORIES)}")
     print(f"Districts: {len(DISTRICTS)}")
     print(f"Attractions: {len(ATTRACTIONS)}")
+    print(f"Excursion stops: {sum(len(v) for v in EXCURSIONS.values())}")
+    print(f"Demo visitors: {len(DEMO_VISITORS)} ({progress_count} записей прохождения)")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
-from typing import Any, Dict, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -83,3 +84,48 @@ class RouteResponse(BaseModel):
     duration_s: float
     geometry: Dict[str, Any]
     external_yandex_url: str
+
+
+# ---------- Экскурсии ----------
+
+
+class ExcursionStopOut(BaseModel):
+    id: int
+    position: int
+    title: str
+    description: str
+    image_url: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ExcursionOut(BaseModel):
+    attraction_id: int
+    attraction_name: str
+    category: CategoryBrief
+    stops: List[ExcursionStopOut]
+    status: Optional[str] = None  # None / started / completed
+
+
+class ProgressOut(BaseModel):
+    attraction_id: int
+    status: str
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ---------- Рекомендации ----------
+
+
+class RecommendationItem(BaseModel):
+    attraction: AttractionBrief
+    score: float
+    reasons: List[str]
+
+
+class RecommendationsOut(BaseModel):
+    strategy: str  # personal / popular
+    based_on: int  # сколько экскурсий учтено в профиле
+    items: List[RecommendationItem]
