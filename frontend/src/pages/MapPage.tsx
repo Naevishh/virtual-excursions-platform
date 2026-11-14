@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   buildRoute as buildRouteApi,
   completeExcursion,
@@ -15,7 +15,7 @@ import {
 } from "../api/client";
 import AttractionCard from "../components/AttractionCard";
 import AttractionList from "../components/AttractionList";
-import ExcursionView from "../components/ExcursionView";
+import ExcursionOverlay from "../components/ExcursionOverlay";
 import FilterPanel from "../components/FilterPanel";
 import Legend from "../components/Legend";
 import MapView from "../components/MapView";
@@ -353,6 +353,8 @@ export default function MapPage() {
     await loadPersonalData();
   }
 
+  const closeExcursion = useCallback(() => setExcursionOpen(false), []);
+
   function clearRoute() {
     setRouteResult(null);
     setRouteError(null);
@@ -465,20 +467,7 @@ export default function MapPage() {
             </>
           )}
 
-          {selected && excursionOpen && (
-            <ExcursionView
-              excursion={excursion}
-              loading={excursionLoading}
-              error={excursionError}
-              onClose={() => setExcursionOpen(false)}
-              onComplete={handleCompleteExcursion}
-              recommendations={recommendations}
-              recommendationsLoading={recommendationsLoading}
-              onSelectRecommendation={setSelected}
-            />
-          )}
-
-          {selected && !excursionOpen && (
+          {selected && (
             <AttractionCard
               attraction={detail}
               loading={detailLoading}
@@ -492,18 +481,16 @@ export default function MapPage() {
             />
           )}
 
-          {!excursionOpen && (
-            <RoutePanel
-              originLabel={originLabel}
-              destinationName={selected?.name || ""}
-              result={routeResult}
-              loading={routeLoading}
-              error={routeError}
-              onClear={clearRoute}
-            />
-          )}
+          <RoutePanel
+            originLabel={originLabel}
+            destinationName={selected?.name || ""}
+            result={routeResult}
+            loading={routeLoading}
+            error={routeError}
+            onClear={clearRoute}
+          />
 
-          {!excursionOpen && relatedTitle && (
+          {relatedTitle && (
             <RelatedList
               title={relatedTitle}
               items={related}
@@ -514,6 +501,18 @@ export default function MapPage() {
           )}
         </aside>
       </div>
+
+      {selected && excursionOpen && (
+        <ExcursionOverlay
+          excursion={excursion}
+          loading={excursionLoading}
+          error={excursionError}
+          onClose={closeExcursion}
+          onComplete={handleCompleteExcursion}
+          recommendations={recommendations}
+          onSelectRecommendation={setSelected}
+        />
+      )}
     </div>
   );
 }
