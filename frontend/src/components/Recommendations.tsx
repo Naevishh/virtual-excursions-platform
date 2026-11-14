@@ -20,11 +20,6 @@ export default function Recommendations({
   return (
     <div className="related-list">
       <h3>{heading}</h3>
-      <p className="hint rec-subtitle">
-        {personal
-          ? "Подобрано по экскурсиям, которые вы проходили."
-          : "Пройдите первую экскурсию — и рекомендации станут персональными."}
-      </p>
 
       {loading && !data && <p className="hint">Загрузка...</p>}
       {data && data.items.length === 0 && (
@@ -43,11 +38,6 @@ export default function Recommendations({
             <div className="related-item-meta">
               {item.attraction.category.name} • {item.attraction.district.name}
             </div>
-            <ul className="rec-reasons">
-              {item.reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
-              ))}
-            </ul>
           </button>
         ))}
       </div>
