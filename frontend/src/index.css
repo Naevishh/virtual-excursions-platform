@@ -582,20 +582,3 @@ input {
   background: #d1fae5;
   color: #065f46;
 }
-
-/* ---------- Рекомендации ---------- */
-
-.rec-subtitle {
-  margin: -8px 0 12px;
-}
-
-.rec-reasons {
-  margin: 0;
-  padding-left: 16px;
-  font-size: 12px;
-  color: #047857;
-}
-
-.rec-reasons li + li {
-  margin-top: 2px;
-}
