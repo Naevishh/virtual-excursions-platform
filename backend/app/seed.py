@@ -32,7 +32,7 @@ ATTRACTIONS = [
         "slug": "mir-castle",
         "name": "Мирский замок",
         "category_slug": "castles",
-        "district_slug": "karelichy-district", # Исправлено
+        "district_slug": "karelichy-district",
         "latitude": 53.8539,
         "longitude": 26.4719,
         "short_description": "Средневековый замок, объект Всемирного наследия ЮНЕСКО.",
@@ -40,7 +40,7 @@ ATTRACTIONS = [
             "Мирский замок — памятник оборонного зодчества XV–XVI веков, "
             "один из самых узнаваемых символов Беларуси."
         ),
-        "photo_url": None,
+        "photo_url": "/attractions/mir-castle.jpg",
         "source_url": "https://en.wikipedia.org/wiki/Mir_Castle",
         "is_accessible": True,
     },
@@ -48,7 +48,7 @@ ATTRACTIONS = [
         "slug": "nesvizh-castle",
         "name": "Несвижский замок",
         "category_slug": "castles",
-        "district_slug": "nesvizh-district", # Исправлено
+        "district_slug": "nesvizh-district",
         "latitude": 53.7025,
         "longitude": 26.9836,
         "short_description": "Дворцово-замковый комплекс Радзивиллов.",
@@ -56,7 +56,7 @@ ATTRACTIONS = [
             "Несвижский замок — крупный дворцово-замковый комплекс, "
             "связанный с родом Радзивиллов и включённый в список ЮНЕСКО."
         ),
-        "photo_url": None,
+        "photo_url": "/attractions/nesvizh-castle.jpg",
         "source_url": "https://en.wikipedia.org/wiki/Nesvizh_Castle",
         "is_accessible": True,
     },
@@ -64,7 +64,7 @@ ATTRACTIONS = [
         "slug": "nesvizh-body-of-god-church",
         "name": "Костёл Божьего Тела",
         "category_slug": "religious",
-        "district_slug": "nesvizh-district", # Исправлено
+        "district_slug": "nesvizh-district",
         "latitude": 53.7036,
         "longitude": 26.9847,
         "short_description": "Костёл в Несвиже, памятник архитектуры XVI века.",
@@ -72,7 +72,7 @@ ATTRACTIONS = [
             "Костёл Божьего Тела — один из важнейших архитектурных объектов Несвижа, "
             "связанный с ансамблем замка Радзивиллов."
         ),
-        "photo_url": None,
+        "photo_url": "/attractions/nesvizh-body-of-god-church.jpg",
         "source_url": "https://en.wikipedia.org/wiki/Church_of_the_Body_of_God,_Nesvizh",
         "is_accessible": True,
     },
@@ -88,7 +88,7 @@ ATTRACTIONS = [
             "Костёл Святых Симеона и Елены — неофициально Красный костёл, "
             "одно из заметных религиозных сооружений Минска."
         ),
-        "photo_url": None,
+        "photo_url": "/attractions/minsk-red-church.jpg",
         "source_url": "https://en.wikipedia.org/wiki/Church_of_St._Simon_and_Helena,_Minsk",
         "is_accessible": True,
     },
@@ -103,7 +103,7 @@ ATTRACTIONS = [
         "full_description": (
             "Собор Сошествия Святого Духа — один из главных православных храмов Минска."
         ),
-        "photo_url": None,
+        "photo_url": "/attractions/minsk-holy-spirit-cathedral.jpg",
         "source_url": "https://en.wikipedia.org/wiki/Cathedral_of_the_Holy_Spirit,_Minsk",
         "is_accessible": True,
     },
@@ -119,7 +119,7 @@ ATTRACTIONS = [
             "Церковь равноапостольной Марии Магдалины — православный храм, "
             "расположенный в Минске."
         ),
-        "photo_url": None,
+        "photo_url": "/attractions/minsk-mary-magdalene-church.jpg",
         "source_url": "https://en.wikipedia.org/wiki/Church_of_Mary_Magdalene,_Minsk",
         "is_accessible": True,
     },
@@ -127,7 +127,7 @@ ATTRACTIONS = [
         "slug": "khatyn-memorial",
         "name": "Мемориальный комплекс «Хатынь»",
         "category_slug": "memorials",
-        "district_slug": "lahoysk-district", # Исправлено
+        "district_slug": "lahoysk-district",
         "latitude": 54.3681,
         "longitude": 28.0414,
         "short_description": "Мемориал, посвящённый жертвам сожжённой деревни Хатынь.",
@@ -135,7 +135,7 @@ ATTRACTIONS = [
             "«Хатынь» — мемориальный комплекс, созданный на месте трагедии "
             "военных лет и символизирующий память о сожжённых деревнях Беларуси."
         ),
-        "photo_url": None,
+        "photo_url": "/attractions/khatyn-memorial.jpg",
         "source_url": "https://en.wikipedia.org/wiki/Khatyn",
         "is_accessible": True,
     },
@@ -143,7 +143,7 @@ ATTRACTIONS = [
         "slug": "kurgan-slavy",
         "name": "Курган Славы",
         "category_slug": "memorials",
-        "district_slug": "minsk-district", # Исправлено: находится в Минском районе
+        "district_slug": "minsk-district",
         "latitude": 53.9064,
         "longitude": 27.8736,
         "short_description": "Мемориальный комплекс в честь освобождения Беларуси.",
@@ -151,7 +151,7 @@ ATTRACTIONS = [
             "Курган Славы — монументальный мемориал, посвящённый операции «Багратион» "
             "и освобождению Беларуси в годы Великой Отечественной войны."
         ),
-        "photo_url": None,
+        "photo_url": "/attractions/kurgan-slavy.jpg",
         "source_url": "https://en.wikipedia.org/wiki/Kurgan_Slavy",
         "is_accessible": True,
     },
@@ -167,7 +167,7 @@ ATTRACTIONS = [
             "Мемориальное кладбище советских солдат — место памяти и захоронений "
             "воинов, погибших в годы Великой Отечественной войны."
         ),
-        "photo_url": None,
+        "photo_url": "/attractions/minsk-soviet-soldiers-cemetery.jpg",
         "source_url": None,
         "is_accessible": True,
     },
@@ -183,7 +183,7 @@ ATTRACTIONS = [
             "Национальный исторический музей Республики Беларусь хранит коллекции, "
             "отражающие историю белорусских земель от древности до нового времени."
         ),
-        "photo_url": None,
+        "photo_url": "/attractions/national-historical-museum.jpg",
         "source_url": "https://en.wikipedia.org/wiki/National_Historical_Museum_of_Belarus",
         "is_accessible": True,
     },
@@ -199,7 +199,7 @@ ATTRACTIONS = [
             "Музей истории Великой Отечественной войны посвящён событиям "
             "1941–1945 годов и вкладу Беларуси в Победу."
         ),
-        "photo_url": None,
+        "photo_url": "/attractions/wwii-museum.jpg",
         "source_url": "https://en.wikipedia.org/wiki/Belarusian_State_Museum_of_the_Great_Patriotic_War_History",
         "is_accessible": True,
     },
@@ -207,7 +207,7 @@ ATTRACTIONS = [
         "slug": "folk-architecture-museum",
         "name": "Музей народной архитектуры и быта",
         "category_slug": "museums",
-        "district_slug": "minsk-district", # Исправлено: музей находится в д. Озерцо, Минский район
+        "district_slug": "minsk-district",
         "latitude": 53.8333,
         "longitude": 27.3833,
         "short_description": "Музей под открытым небом в Озерцо (Строчицы).",
@@ -215,24 +215,25 @@ ATTRACTIONS = [
             "Музей народной архитектуры и быта представляет традиционные постройки "
             "и предметы крестьянского быта Беларуси. Расположен в Минском районе."
         ),
-        "photo_url": None,
+        "photo_url": "/attractions/folk-architecture-museum.jpg",
         "source_url": "https://en.wikipedia.org/wiki/Museum_of_Folk_Architecture_and_Ethnography,_Belarus",
         "is_accessible": True,
     },
     {
         "slug": "modern-art-museum",
-        "name": "Белорусский государственный музей современного искусства",
+        "name": "Музей современного искусства",
         "category_slug": "museums",
         "district_slug": "minsk",
         "latitude": 53.9025,
         "longitude": 27.5675,
-        "short_description": "Музей современного искусства в Минске.",
+        "short_description": "Выставочный корпус №2 Национального художественного музея, посвящённый искусству XX–XXI веков.",
         "full_description": (
-            "Музей современного искусства представляет коллекции белорусского "
-            "и зарубежного искусства XX–XXI веков."
+            "Расположен по адресу проспект Независимости, 47. "
+            "В настоящее время функционирует как Выставочный корпус №2 Национального художественного музея Республики Беларусь. "
+            "Здесь представлены коллекции белорусского и зарубежного искусства XX–XXI веков, включая живопись, графику и скульптуру."
         ),
-        "photo_url": None,
-        "source_url": "https://en.wikipedia.org/wiki/Belarusian_State_Museum_of_Modern_Art",
+        "photo_url": "/attractions/modern-art-museum.jpg",
+        "source_url": "https://artmuseum.by/",
         "is_accessible": True,
     },
 ]
