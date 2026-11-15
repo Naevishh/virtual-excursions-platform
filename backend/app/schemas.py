@@ -93,7 +93,9 @@ class ExcursionStopOut(BaseModel):
     id: int
     position: int
     title: str
+    subtitle: Optional[str] = None
     description: str
+    fact: Optional[str] = None
     image_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

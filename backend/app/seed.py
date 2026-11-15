@@ -1,4 +1,4 @@
-from app.database import SessionLocal, create_db_and_tables
+from app.database import SessionLocal, create_db_and_tables, engine
 from datetime import datetime, timezone
 
 from app.models import (
@@ -241,9 +241,13 @@ ATTRACTIONS = [
 def seed():
     create_db_and_tables()
 
+    # Таблицу точек пересоздаём целиком: так новые колонки (subtitle, fact)
+    # появятся и в базе, созданной старой версией проекта.
+    ExcursionStop.__table__.drop(bind=engine, checkfirst=True)
+    ExcursionStop.__table__.create(bind=engine)
+
     with SessionLocal() as session:
         session.query(ExcursionProgress).delete()
-        session.query(ExcursionStop).delete()
         session.query(Attraction).delete()
         session.query(District).delete()
         session.query(Category).delete()
@@ -289,7 +293,9 @@ def seed():
                         attraction_id=obj.id,
                         position=position,
                         title=stop["title"],
+                        subtitle=stop.get("subtitle"),
                         description=stop["description"],
+                        fact=stop.get("fact"),
                         image_url=stop.get(
                             "image_url", f"/excursions/{item['slug']}/{position}.jpg"
                         ),

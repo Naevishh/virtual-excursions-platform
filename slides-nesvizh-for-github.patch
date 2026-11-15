@@ -1,0 +1,1433 @@
+From e9ca8dbd786ba13434f851edc49c4011f5ba6a61 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 15 Nov 2026 22:28:09 +0300
+Subject: [PATCH] =?UTF-8?q?=D0=AD=D0=BA=D1=81=D0=BA=D1=83=D1=80=D1=81?=
+ =?UTF-8?q?=D0=B8=D1=8F=20=D1=81=D0=BB=D0=B0=D0=B9=D0=B4=D0=B0=D0=BC=D0=B8?=
+ =?UTF-8?q?,=20=D0=BD=D0=BE=D0=B2=D1=8B=D0=B9=20=D0=B4=D0=B8=D0=B7=D0=B0?=
+ =?UTF-8?q?=D0=B9=D0=BD=20=D0=B8=20=D1=80=D0=B0=D1=81=D1=88=D0=B8=D1=80?=
+ =?UTF-8?q?=D0=B5=D0=BD=D0=BD=D0=B0=D1=8F=20=D1=8D=D0=BA=D1=81=D0=BA=D1=83?=
+ =?UTF-8?q?=D1=80=D1=81=D0=B8=D1=8F=20=D0=BF=D0=BE=20=D0=9D=D0=B5=D1=81?=
+ =?UTF-8?q?=D0=B2=D0=B8=D0=B6=D1=81=D0=BA=D0=BE=D0=BC=D1=83=20=D0=B7=D0=B0?=
+ =?UTF-8?q?=D0=BC=D0=BA=D1=83?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_017n72JTAQoXf4hDyndkYgub
+---
+ README.md                                    |  17 +-
+ backend/app/models.py                        |   4 +-
+ backend/app/schemas.py                       |   2 +
+ backend/app/seed.py                          |  10 +-
+ backend/app/seed_excursions.py               | 232 ++++++++-
+ frontend/public/excursions/README.md         |  19 +
+ frontend/src/components/ExcursionOverlay.tsx | 322 ++++++++----
+ frontend/src/index.css                       | 509 +++++++++++++++----
+ frontend/src/types/index.ts                  |   2 +
+ 9 files changed, 873 insertions(+), 244 deletions(-)
+
+diff --git a/README.md b/README.md
+index 9aa34da..2b6c460 100644
+--- a/README.md
++++ b/README.md
+@@ -182,9 +182,9 @@ npm run dev
+ | 7 | В карточке → «Похожие объекты» | Список объектов той же категории |
+ | 8 | В карточке → «Что рядом» | Объекты в радиусе от выбранного |
+ 
+-| 9 | В карточке → «Пройти экскурсию» | В правой панели — пошаговая экскурсия: картинка, название и описание каждой точки |
+-| 10 | Дойти до последней точки → «Завершить экскурсию» | Экскурсия отмечена ✓ в списке и карточке, ниже — блок «Что пройти дальше» |
+-| 11 | Закрыть карточку | В правой панели — «Рекомендуем вам» с пояснением, почему предложен каждый объект |
++| 9 | В карточке → «Пройти экскурсию» | Экскурсия открывается на весь экран слайдами: картинка + текст. Листать — стрелки, клавиши ← →, свайп; Esc — закрыть. Самая подробная — «Несвижский замок» (14 слайдов) |
++| 10 | На последнем слайде → «Завершить» | Экскурсия отмечена ✓ в списке и карточке, на финальном экране — «Что пройти дальше» |
++| 11 | Закрыть карточку | В правой панели — «Рекомендуем вам», сверху самое подходящее |
+ 
+ ---
+ 
+@@ -193,6 +193,10 @@ npm run dev
+ У каждого объекта есть 3–5 точек экскурсии (`excursion_stops`): название, мини-описание, картинка.
+ Контент лежит в `backend/app/seed_excursions.py` и загружается командой `python -m app.seed`.
+ 
++Поля точки: `title`, `description` (абзацы через пустую строку), необязательные `subtitle`
++(подпись над заголовком — эпоха, место) и `fact` (врезка «Интересно»).
++Пример расширенной экскурсии — «Несвижский замок», 14 слайдов.
++
+ Картинки: `frontend/public/excursions/<slug>/<номер>.jpg` (подробнее — README в этой папке).
+ Если картинки нет, показывается заглушка.
+ 
+@@ -208,7 +212,7 @@ npm run dev
+ | Действие | Статус | Вес |
+ |---|---|---|
+ | Нажал «Пройти экскурсию» | `started` | 0.5 |
+-| Дошёл до конца и нажал «Завершить экскурсию» | `completed` | 1.0 |
++| Долистал до последнего слайда и нажал «Завершить» | `completed` | 1.0 |
+ | Клик по маркеру / открытие карточки | — | не учитывается |
+ 
+ ### Как считается рекомендация
+@@ -224,8 +228,9 @@ score = 0.45 · collaborative   «кто прошёл X, тот прошёл и
+ 
+ - **Холодный старт** (истории нет) — показываются популярные экскурсии.
+ - **Начатые, но не завершённые** экскурсии получают бонус: их предлагают закончить.
+-- Каждая рекомендация приходит с **объяснением** («Её часто проходят те, кто прошёл «Мирский замок»»,
+-  «Вы прошли 2 экскурсии в категории «Замки»», «Рядом с уже пройденным…»).
++- Список отсортирован по убыванию балла: сверху — самое рекомендуемое.
++- API дополнительно отдаёт поле `reasons` с объяснением каждой рекомендации (для отладки
++  и защиты проекта); в интерфейсе оно не показывается.
+ - В сид добавлена демо-история 10 анонимных посетителей (`demo-*`), чтобы коллаборативная часть
+   работала с первого запуска.
+ 
+diff --git a/backend/app/models.py b/backend/app/models.py
+index 302fc6d..3b1ca03 100644
+--- a/backend/app/models.py
++++ b/backend/app/models.py
+@@ -93,7 +93,9 @@ class ExcursionStop(Base):
+     )
+     position = Column(Integer, nullable=False)
+     title = Column(String(255), nullable=False)
+-    description = Column(Text, nullable=False)
++    subtitle = Column(String(255), nullable=True)  # подпись над заголовком
++    description = Column(Text, nullable=False)  # абзацы через пустую строку
++    fact = Column(Text, nullable=True)  # врезка «Интересно»
+     image_url = Column(Text, nullable=True)
+ 
+     attraction = relationship("Attraction", back_populates="stops")
+diff --git a/backend/app/schemas.py b/backend/app/schemas.py
+index 86a9fcd..8ba4cf1 100644
+--- a/backend/app/schemas.py
++++ b/backend/app/schemas.py
+@@ -93,7 +93,9 @@ class ExcursionStopOut(BaseModel):
+     id: int
+     position: int
+     title: str
++    subtitle: Optional[str] = None
+     description: str
++    fact: Optional[str] = None
+     image_url: Optional[str] = None
+ 
+     model_config = ConfigDict(from_attributes=True)
+diff --git a/backend/app/seed.py b/backend/app/seed.py
+index 2f7f5bb..c773be0 100644
+--- a/backend/app/seed.py
++++ b/backend/app/seed.py
+@@ -1,4 +1,4 @@
+-from app.database import SessionLocal, create_db_and_tables
++from app.database import SessionLocal, create_db_and_tables, engine
+ from datetime import datetime, timezone
+ 
+ from app.models import (
+@@ -241,9 +241,13 @@ ATTRACTIONS = [
+ def seed():
+     create_db_and_tables()
+ 
++    # Таблицу точек пересоздаём целиком: так новые колонки (subtitle, fact)
++    # появятся и в базе, созданной старой версией проекта.
++    ExcursionStop.__table__.drop(bind=engine, checkfirst=True)
++    ExcursionStop.__table__.create(bind=engine)
++
+     with SessionLocal() as session:
+         session.query(ExcursionProgress).delete()
+-        session.query(ExcursionStop).delete()
+         session.query(Attraction).delete()
+         session.query(District).delete()
+         session.query(Category).delete()
+@@ -289,7 +293,9 @@ def seed():
+                         attraction_id=obj.id,
+                         position=position,
+                         title=stop["title"],
++                        subtitle=stop.get("subtitle"),
+                         description=stop["description"],
++                        fact=stop.get("fact"),
+                         image_url=stop.get(
+                             "image_url", f"/excursions/{item['slug']}/{position}.jpg"
+                         ),
+diff --git a/backend/app/seed_excursions.py b/backend/app/seed_excursions.py
+index 1f0cc88..7675ad5 100644
+--- a/backend/app/seed_excursions.py
++++ b/backend/app/seed_excursions.py
+@@ -5,6 +5,13 @@
+ в frontend/public/excursions/<slug>/1.jpg, 2.jpg, ... и они подхватятся.
+ Если файла нет, фронтенд покажет заглушку, экскурсия всё равно работает.
+ Можно указать и внешний URL: ключ "image_url" у конкретной точки.
++
++Поля точки:
++    title        — заголовок слайда (обязательно)
++    description  — текст; абзацы разделяются пустой строкой (\\n\\n)
++    subtitle     — подпись над заголовком: эпоха, место (необязательно)
++    fact         — врезка «Интересно» (необязательно)
++    image_url    — свой путь к картинке (необязательно)
+ """
+ 
+ EXCURSIONS = {
+@@ -49,37 +56,232 @@ EXCURSIONS = {
+             ),
+         },
+     ],
++    # Расширенная экскурсия. Абзацы в description разделяются пустой строкой.
++    # subtitle — подпись над заголовком (эпоха/место), fact — врезка «Интересно».
+     "nesvizh-castle": [
+         {
+-            "title": "Дамба и надвратная башня",
++            "subtitle": "Добро пожаловать",
++            "title": "Несвижский дворец Радзивиллов",
++            "description": (
++                "Почти четыре столетия Несвиж был родовым гнездом Радзивиллов — "
++                "самого богатого и влиятельного магнатского рода Великого "
++                "княжества Литовского. Их называли некоронованными королями, и "
++                "дворец был им под стать.\n\n"
++                "За это время крепость эпохи Ренессанса обросла барочными, "
++                "классицистическими и неоготическими чертами. Поэтому одним "
++                "словом назвать стиль Несвижа почти невозможно — здесь каждая "
++                "эпоха оставила свой след."
++            ),
++            "fact": (
++                "В 2005 году дворец вместе с Фарным костёлом внесли в Список "
++                "всемирного наследия ЮНЕСКО. Дворец состоит из десяти "
++                "соединённых между собой зданий вокруг шестиугольного двора."
++            ),
++        },
++        {
++            "subtitle": "Начало XVI века",
++            "title": "До каменного замка",
++            "description": (
++                "Первый замок здесь был деревянным. Его построили прежние "
++                "владельцы Несвижа — род Кишек, примерно там, где сейчас "
++                "Старый парк, к северу от нынешнего дворца.\n\n"
++                "Радзивиллам Несвиж достался благодаря браку Яна Радзивилла "
++                "с Анной Кишкой. В 1547 году Николай Радзивилл Чёрный получил "
++                "от императора Карла V титул князя Священной Римской империи "
++                "и сделал Несвиж своей резиденцией."
++            ),
++            "fact": (
++                "С 1551 года в Несвиже хранился архив Великого княжества "
++                "Литовского — копии важнейших государственных документов."
++            ),
++        },
++        {
++            "subtitle": "1583 год",
++            "title": "Сиротка закладывает замок",
++            "description": (
++                "Каменный замок начал строить Николай Христофор Радзивилл по "
++                "прозвищу Сиротка (1549–1616). Он был образованным человеком "
++                "и путешественником: совершил паломничество в Святую землю "
++                "и описал его в книге, изданной в 1601 году.\n\n"
++                "Строительством в 1586–1599 годах руководил итальянский "
++                "архитектор Джованни Мария Бернардони. Замок окружили земляным "
++                "валом с бастионами по углам и рвом с водой, а внутрь вели "
++                "каменные ворота с подъёмным мостом."
++            ),
++            "fact": (
++                "Бернардони в Несвиже построил и Фарный костёл Божьего Тела — "
++                "одно из первых барочных зданий Восточной Европы."
++            ),
++        },
++        {
++            "subtitle": "1586 год",
++            "title": "Несвижская ординация",
+             "description": (
+-                "Замок окружён земляными валами и рвами с водой. Попасть внутрь "
+-                "можно только по дамбе через надвратную башню — так было и во "
+-                "времена Радзивиллов."
++                "В 1586 году сыновья Николая Чёрного договорились превратить "
++                "свои владения в ординации. Такое имение нельзя было продать "
++                "или разделить — оно целиком переходило к старшему наследнику.\n\n"
++                "Несвижская ординация просуществовала до 1939 года, и за это "
++                "время ею владели семнадцать ординатов. Благодаря этому замок "
++                "и его сокровища веками оставались в одних руках."
++            ),
++            "fact": (
++                "В том же 1586 году король Стефан Баторий даровал Несвижу "
++                "Магдебургское право — городское самоуправление."
+             ),
+         },
+         {
+-            "title": "Парадный двор",
++            "subtitle": "XVII — начало XVIII века",
++            "title": "Неприступная крепость",
+             "description": (
+-                "Строительство замка начал Николай Христофор Радзивилл «Сиротка» "
+-                "в 1580-х годах. Корпуса дворца образуют замкнутый двор с "
+-                "галереями — сердце резиденции."
++                "В XVII веке по углам бастионов выросли четыре оборонительные "
++                "башни, а подходы к замку дополнительно укрепили. В 1655 и "
++                "1660 годах крепость выдержала штурмы русских войск.\n\n"
++                "Взять замок удалось только шведам в 1706 году, во время "
++                "Северной войны. Они разрушили постройки и бастионные стены, "
++                "и после этого Несвиж пришлось отстраивать заново."
+             ),
+         },
+         {
++            "subtitle": "XVIII век",
++            "title": "Рыбонька и Пане Коханку",
++            "description": (
++                "Восстановление началось в 1720-х годах при Михаиле Казимире "
++                "Радзивилле по прозвищу Рыбонька. Работами руководил архитектор "
++                "Казимир Жданович: он построил часовню и театральный зал, а "
++                "новые корпуса соединили все части замка в единое целое.\n\n"
++                "Расцвет продолжился при его сыне Кароле Станиславе (1734–1790), "
++                "которого прозвали Пане Коханку — по его любимому обращению к "
++                "собеседникам. Его пиры, охоты и чудачества стали легендой."
++            ),
++            "fact": (
++                "Именно к концу XVIII века сложился тот замкнутый комплекс "
++                "корпусов вокруг двора, который мы видим сегодня."
++            ),
++        },
++        {
++            "subtitle": "Сокровищница",
++            "title": "Библиотека, архив и галерея",
++            "description": (
++                "Библиотеку основал ещё Сиротка, а к 1770 году в ней было около "
++                "20 000 томов — это была крупнейшая частная библиотека Речи "
++                "Посполитой. В картинной галерее тогда же насчитывалось 984 "
++                "полотна.\n\n"
++                "Кроме того, в замке хранились коллекции оружия и монет, "
++                "драгоценности и государственный архив. Позже собрания "
++                "рассеялись: части библиотеки сейчас находятся в Беларуси, "
++                "Польше, Литве, России и Финляндии."
++            ),
++            "fact": (
++                "В 2009 году архивы Радзивиллов и Несвижское книжное собрание "
++                "включили в реестр ЮНЕСКО «Память мира»."
++            ),
++        },
++        {
++            "subtitle": "1740-е годы",
++            "title": "Театр Франциски Урсулы",
++            "description": (
++                "Жена Рыбоньки, Франциска Урсула Радзивилл (1705–1753), основала "
++                "в Несвиже придворный театр — первый на территории нынешней "
++                "Беларуси.\n\n"
++                "Она не только руководила театром, но и сама писала для него "
++                "пьесы, в основном комедии в духе итальянского театра. Со "
++                "временем любительская сцена с участием княжеской семьи стала "
++                "профессиональной."
++            ),
++            "fact": (
++                "Франциску Урсулу считают первой женщиной-драматургом "
++                "Беларуси и Польши."
++            ),
++        },
++        {
++            "subtitle": "Интерьеры",
+             "title": "Парадные залы",
+             "description": (
+-                "Во дворце восстановлены анфилады залов: Каминный, Охотничий, "
+-                "Гетманский, Золотой. Портреты, оружие и мебель показывают быт "
+-                "одного из богатейших магнатских родов Европы."
++                "К 1939 году во дворце было 34 парадных зала. Сегодня часть "
++                "из них воссоздана: Золотой, Гетманский, Охотничий, Каминный "
++                "и другие, с расписными потолками, старинной мебелью, "
++                "портретами и оружием.\n\n"
++                "В 1784 году к приезду короля Станислава Августа Понятовского "
++                "во дворце оформили специальный Королевский зал. Визит монарха "
++                "был большим событием для всего Несвижа."
+             ),
+         },
+         {
+-            "title": "Парки",
++            "subtitle": "1812 год",
++            "title": "Наполеон и закат",
+             "description": (
+-                "Вокруг замка на рубеже XIX–XX веков разбили несколько парков — "
+-                "Японский, Английский, Старый и Новый. Прогулка по ним — "
+-                "отдельная часть экскурсии."
++                "Во второй половине XVIII века замок не раз осаждали русские "
++                "войска. В 1812 году ординат Доминик Радзивилл встал на сторону "
++                "Наполеона, и это обернулось для Несвижа бедой: сокровища "
++                "вывезли или конфисковали, а замок разграбили.\n\n"
++                "После этого дворец больше полувека простоял почти без "
++                "хозяев — до 1875 года."
++            ),
++            "fact": (
++                "В старинных описях упоминаются двенадцать фигур апостолов в "
++                "человеческий рост из драгоценных металлов. Куда они исчезли, "
++                "неизвестно до сих пор — их ищут уже двести лет."
++            ),
++        },
++        {
++            "subtitle": "1870-е — 1914",
++            "title": "Мария де Кастеллан и парки",
++            "description": (
++                "Новую жизнь Несвижу подарила жена князя Антония Радзивилла, "
++                "француженка Мария де Кастеллан. Впервые она приехала сюда в "
++                "1865 году и увидела вокруг замка пустырь с торговыми лавками.\n\n"
++                "С 1870-х годов вокруг дворца разбили пейзажные парки, "
++                "саженцы везли даже из Берлина. Сегодня их пять — Замковый, "
++                "Старый, Японский, Английский и Марысин, — общей площадью "
++                "около 66 гектаров."
++            ),
++            "fact": (
++                "Марысин парк — самый большой, 22 гектара. Его название "
++                "связывают с легендой о любви княжны к бедному шляхтичу; "
++                "обелиск с надписью «Марысин 1898» стоит там до сих пор."
++            ),
++        },
++        {
++            "subtitle": "1939–2001",
++            "title": "XX век",
++            "description": (
++                "В 1939 году Радзивиллы навсегда покинули Несвиж, а замок взяли "
++                "под охрану государства. В войну немцы устроили в нём госпиталь. "
++                "30 октября 1941 года в Несвиже были убиты около 1500 жителей — "
++                "им установлен памятник в Старом парке.\n\n"
++                "С 1945 по 2001 год во дворце работал санаторий. Интерьеры "
++                "за эти годы были почти полностью утрачены, а парк постепенно "
++                "зарастал."
++            ),
++        },
++        {
++            "subtitle": "2002–2012",
++            "title": "Пожар и возрождение",
++            "description": (
++                "В 2001 году дворец передали музею-заповеднику «Несвиж», и "
++                "началась реставрация. Но в 2002 году случился пожар: огонь "
++                "уничтожил верхний этаж и часть галереи.\n\n"
++                "Восстановление растянулось на десять лет. В 2012 году работы "
++                "завершились, и для посетителей открылись парадные залы с "
++                "воссозданными интерьерами. Сегодня в замке есть и гостиница."
++            ),
++        },
++        {
++            "subtitle": "Легенда",
++            "title": "Чёрная дама",
++            "description": (
++                "Главная легенда Несвижа — о призраке Барбары Радзивилл. "
++                "Красавица тайно обвенчалась с Сигизмундом Августом, была "
++                "коронована в 1550 году и вскоре умерла. Безутешный король "
++                "будто бы вызвал её дух на спиритическом сеансе — и с тех пор "
++                "Чёрная дама бродит по замку.\n\n"
++                "Говорят, она появляется перед бедой: её якобы видели "
++                "незадолго до пожара 2002 года."
++            ),
++            "fact": (
++                "Историки замечают нестыковку: Барбара умерла в 1551 году, "
++                "больше чем за тридцать лет до закладки каменного замка. Но "
++                "легенда от этого не стала менее популярной."
+             ),
+         },
+     ],
+diff --git a/frontend/public/excursions/README.md b/frontend/public/excursions/README.md
+index 8718549..9f7cb51 100644
+--- a/frontend/public/excursions/README.md
++++ b/frontend/public/excursions/README.md
+@@ -11,3 +11,22 @@ excursions/khatyn-memorial/1.jpg — «Непокорённый человек»
+ Список объектов, точек и их порядок — в `backend/app/seed_excursions.py`.
+ Если файла нет, в интерфейсе показывается заглушка — экскурсия всё равно работает.
+ Вместо локального файла можно указать внешний URL: ключ `"image_url"` у точки в `seed_excursions.py`.
++
++## Несвижский замок — расширенная экскурсия (14 слайдов)
++
++| Файл | Слайд |
++|---|---|
++| `nesvizh-castle/1.jpg` | Несвижский дворец Радзивиллов |
++| `nesvizh-castle/2.jpg` | До каменного замка |
++| `nesvizh-castle/3.jpg` | Сиротка закладывает замок |
++| `nesvizh-castle/4.jpg` | Несвижская ординация |
++| `nesvizh-castle/5.jpg` | Неприступная крепость |
++| `nesvizh-castle/6.jpg` | Рыбонька и Пане Коханку |
++| `nesvizh-castle/7.jpg` | Библиотека, архив и галерея |
++| `nesvizh-castle/8.jpg` | Театр Франциски Урсулы |
++| `nesvizh-castle/9.jpg` | Парадные залы |
++| `nesvizh-castle/10.jpg` | Наполеон и закат |
++| `nesvizh-castle/11.jpg` | Мария де Кастеллан и парки |
++| `nesvizh-castle/12.jpg` | XX век |
++| `nesvizh-castle/13.jpg` | Пожар и возрождение |
++| `nesvizh-castle/14.jpg` | Чёрная дама |
+diff --git a/frontend/src/components/ExcursionOverlay.tsx b/frontend/src/components/ExcursionOverlay.tsx
+index 6b730b9..419b273 100644
+--- a/frontend/src/components/ExcursionOverlay.tsx
++++ b/frontend/src/components/ExcursionOverlay.tsx
+@@ -1,4 +1,4 @@
+-import { useEffect, useRef, useState } from "react";
++import { useCallback, useEffect, useRef, useState } from "react";
+ import type {
+   AttractionBrief,
+   Excursion,
+@@ -17,15 +17,20 @@ interface ExcursionOverlayProps {
+   onSelectRecommendation: (item: AttractionBrief) => void;
+ }
+ 
+-function pluralStops(n: number): string {
++const pad = (n: number) => String(n).padStart(2, "0");
++
++function pluralSlides(n: number): string {
+   const mod10 = n % 10;
+   const mod100 = n % 100;
+-  if (mod10 === 1 && mod100 !== 11) return `${n} точка`;
+-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${n} точки`;
+-  return `${n} точек`;
++  if (mod10 === 1 && mod100 !== 11) return `${n} слайд`;
++  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${n} слайда`;
++  return `${n} слайдов`;
+ }
+ 
+-/** Полноэкранная экскурсия: все точки лентой, картинка + подпись. */
++/**
++ * Полноэкранная экскурсия слайдами: одна точка — один слайд.
++ * Листать: кнопки, клавиши ← →, свайп; Esc — закрыть.
++ */
+ export default function ExcursionOverlay({
+   excursion,
+   loading,
+@@ -35,32 +40,39 @@ export default function ExcursionOverlay({
+   recommendations,
+   onSelectRecommendation,
+ }: ExcursionOverlayProps) {
++  const [index, setIndex] = useState(0);
++  const [direction, setDirection] = useState<1 | -1>(1);
+   const [finished, setFinished] = useState(false);
+   const [completing, setCompleting] = useState(false);
+   const [completeError, setCompleteError] = useState<string | null>(null);
+-  const finishRef = useRef<HTMLDivElement>(null);
++  const touchStartX = useRef<number | null>(null);
++  const textRef = useRef<HTMLDivElement>(null);
++
++  const stops = excursion?.stops ?? [];
++  const total = stops.length;
++  const isLast = index === total - 1;
+ 
+   useEffect(() => {
++    setIndex(0);
+     setFinished(false);
+     setCompleteError(null);
+   }, [excursion?.attraction_id]);
+ 
++  // новый слайд — текст снова сверху
+   useEffect(() => {
+-    function onKey(event: KeyboardEvent) {
+-      if (event.key === "Escape") onClose();
+-    }
+-    window.addEventListener("keydown", onKey);
+-    return () => window.removeEventListener("keydown", onKey);
+-  }, [onClose]);
++    textRef.current?.scrollTo({ top: 0 });
++  }, [index]);
+ 
+-  useEffect(() => {
+-    if (finished) {
+-      finishRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+-    }
+-  }, [finished]);
++  const goTo = useCallback(
++    (next: number) => {
++      if (next < 0 || next >= total) return;
++      setDirection(next > index ? 1 : -1);
++      setIndex(next);
++    },
++    [index, total]
++  );
+ 
+-  async function handleFinish() {
+-    if (!excursion) return;
++  const handleFinish = useCallback(async () => {
+     setCompleting(true);
+     setCompleteError(null);
+     try {
+@@ -73,110 +85,200 @@ export default function ExcursionOverlay({
+     } finally {
+       setCompleting(false);
+     }
++  }, [onComplete]);
++
++  useEffect(() => {
++    function onKey(event: KeyboardEvent) {
++      if (event.key === "Escape") onClose();
++      if (finished || total === 0) return;
++      if (event.key === "ArrowRight") goTo(index + 1);
++      if (event.key === "ArrowLeft") goTo(index - 1);
++    }
++    window.addEventListener("keydown", onKey);
++    return () => window.removeEventListener("keydown", onKey);
++  }, [onClose, goTo, index, finished, total]);
++
++  function onTouchStart(event: React.TouchEvent) {
++    touchStartX.current = event.touches[0].clientX;
++  }
++
++  function onTouchEnd(event: React.TouchEvent) {
++    if (touchStartX.current === null || finished) return;
++    const dx = event.changedTouches[0].clientX - touchStartX.current;
++    touchStartX.current = null;
++    if (Math.abs(dx) < 50) return;
++    goTo(dx < 0 ? index + 1 : index - 1);
+   }
+ 
+-  const stops = excursion?.stops ?? [];
+   const emoji = categoryEmoji(excursion?.category.slug);
++  const stop = stops[index];
++  const nextStop = stops[index + 1];
+ 
+   return (
+-    <div className="excursion-overlay" role="dialog" aria-modal="true">
+-      <header className="excursion-overlay-header">
+-        <div>
+-          <div className="excursion-label">Виртуальная экскурсия</div>
+-          <h2>{excursion?.attraction_name ?? "Загрузка..."}</h2>
+-        </div>
+-        <div className="excursion-overlay-header-right">
+-          {stops.length > 0 && (
+-            <span className="badge">{pluralStops(stops.length)}</span>
+-          )}
+-          <button
+-            type="button"
+-            className="icon-button"
+-            onClick={onClose}
+-            aria-label="Закрыть экскурсию"
+-          >
+-            ×
+-          </button>
++    <div
++      className="xo"
++      role="dialog"
++      aria-modal="true"
++      onTouchStart={onTouchStart}
++      onTouchEnd={onTouchEnd}
++    >
++      <header className="xo-top">
++        <div className="xo-top-title">
++          <span className="xo-eyebrow">Виртуальная экскурсия</span>
++          <span className="xo-name">{excursion?.attraction_name ?? ""}</span>
+         </div>
++        <button
++          type="button"
++          className="xo-close"
++          onClick={onClose}
++          aria-label="Закрыть экскурсию"
++        >
++          ×
++        </button>
+       </header>
+ 
+-      <div className="excursion-overlay-body">
+-        {loading && <p className="hint">Загрузка экскурсии...</p>}
+-        {error && <p className="error-text">{error}</p>}
+-        {!loading && !error && excursion && stops.length === 0 && (
+-          <p className="hint">Для этого объекта экскурсия пока не подготовлена.</p>
+-        )}
+-
+-        {!loading && !error && stops.length > 0 && (
+-          <>
+-            <ol className="excursion-stops">
+-              {stops.map((stop, index) => (
+-                <li key={stop.id} className="excursion-stop">
+-                  <div className="excursion-stop-media">
+-                    <StopImage src={stop.image_url} alt={stop.title} fallback={emoji} />
+-                  </div>
+-                  <div className="excursion-stop-text">
+-                    <div className="excursion-stop-number">{index + 1}</div>
+-                    <h3>{stop.title}</h3>
+-                    <p>{stop.description}</p>
+-                  </div>
+-                </li>
++      {(loading || error || (excursion && total === 0)) && (
++        <div className="xo-message">
++          {loading && "Загрузка экскурсии..."}
++          {error}
++          {!loading && !error && "Для этого объекта экскурсия пока не подготовлена."}
++        </div>
++      )}
++
++      {!loading && !error && stop && !finished && (
++        <>
++          <main
++            key={stop.id}
++            className={`xo-slide ${direction === 1 ? "from-right" : "from-left"}`}
++          >
++            <div className="xo-media">
++              <StopImage src={stop.image_url} alt={stop.title} fallback={emoji} />
++              <div className="xo-counter">
++                <strong>{pad(index + 1)}</strong> / {pad(total)}
++              </div>
++            </div>
++
++            <div className="xo-text" ref={textRef}>
++              <div className="xo-text-inner">
++                {stop.subtitle && <div className="xo-subtitle">{stop.subtitle}</div>}
++                <h2 className="xo-title">{stop.title}</h2>
++                {stop.description.split(/\n\s*\n/).map((paragraph, i) => (
++                  <p key={i} className="xo-paragraph">
++                    {paragraph}
++                  </p>
++                ))}
++                {stop.fact && (
++                  <aside className="xo-fact">
++                    <span className="xo-fact-label">Интересно</span>
++                    {stop.fact}
++                  </aside>
++                )}
++              </div>
++            </div>
++          </main>
++
++          {/* предзагрузка следующей картинки */}
++          {nextStop?.image_url && (
++            <link rel="prefetch" href={nextStop.image_url} />
++          )}
++
++          <footer className="xo-bottom">
++            <button
++              type="button"
++              className="xo-nav"
++              onClick={() => goTo(index - 1)}
++              disabled={index === 0}
++              aria-label="Предыдущий слайд"
++            >
++              ←
++            </button>
++
++            <div className="xo-progress">
++              {stops.map((s, i) => (
++                <button
++                  key={s.id}
++                  type="button"
++                  className={`xo-seg ${i <= index ? "done" : ""}`}
++                  onClick={() => goTo(i)}
++                  aria-label={`Слайд ${i + 1}: ${s.title}`}
++                  title={s.title}
++                />
+               ))}
+-            </ol>
++            </div>
++
++            {isLast ? (
++              <button
++                type="button"
++                className="xo-finish"
++                onClick={handleFinish}
++                disabled={completing}
++              >
++                {completing ? "Сохраняем..." : "Завершить"}
++              </button>
++            ) : (
++              <button
++                type="button"
++                className="xo-nav primary"
++                onClick={() => goTo(index + 1)}
++                aria-label="Следующий слайд"
++              >
++                →
++              </button>
++            )}
++          </footer>
++          {completeError && <div className="xo-error">{completeError}</div>}
++        </>
++      )}
+ 
+-            <div className="excursion-finish" ref={finishRef}>
+-              {!finished ? (
+-                <>
+-                  <p className="hint">Вы дошли до конца маршрута.</p>
+-                  {completeError && <p className="error-text">{completeError}</p>}
++      {finished && (
++        <main className="xo-done">
++          <div className="xo-done-icon">🎉</div>
++          <h2>Экскурсия пройдена!</h2>
++          <p>
++            «{excursion?.attraction_name}» — {pluralSlides(total)} позади.
++          </p>
++
++          {recommendations && recommendations.items.length > 0 && (
++            <>
++              <h3>Что пройти дальше</h3>
++              <div className="xo-next-grid">
++                {recommendations.items.map((item) => (
+                   <button
++                    key={item.attraction.id}
+                     type="button"
+-                    className="primary-button excursion-button excursion-finish-button"
+-                    onClick={handleFinish}
+-                    disabled={completing}
++                    className="xo-next-card"
++                    onClick={() => onSelectRecommendation(item.attraction)}
+                   >
+-                    {completing ? "Сохраняем..." : "Завершить экскурсию"}
+-                  </button>
+-                </>
+-              ) : (
+-                <>
+-                  <div className="excursion-done-icon">🎉</div>
+-                  <h3>Экскурсия пройдена!</h3>
+-
+-                  {recommendations && recommendations.items.length > 0 && (
+-                    <>
+-                      <h4 className="excursion-next-title">Что пройти дальше</h4>
+-                      <div className="excursion-next-grid">
+-                        {recommendations.items.map((item) => (
+-                          <button
+-                            key={item.attraction.id}
+-                            type="button"
+-                            className="related-item"
+-                            onClick={() => onSelectRecommendation(item.attraction)}
+-                          >
+-                            <div className="related-item-title">
+-                              {categoryEmoji(item.attraction.category.slug)}{" "}
+-                              {item.attraction.name}
+-                            </div>
+-                            <div className="related-item-meta">
+-                              {item.attraction.category.name} •{" "}
+-                              {item.attraction.district.name}
+-                            </div>
+-                          </button>
+-                        ))}
+-                      </div>
+-                    </>
+-                  )}
+-
+-                  <button type="button" className="secondary-button" onClick={onClose}>
+-                    Вернуться к карте
++                    <span className="xo-next-emoji">
++                      {categoryEmoji(item.attraction.category.slug)}
++                    </span>
++                    <span className="xo-next-name">{item.attraction.name}</span>
++                    <span className="xo-next-meta">
++                      {item.attraction.category.name} • {item.attraction.district.name}
++                    </span>
+                   </button>
+-                </>
+-              )}
+-            </div>
+-          </>
+-        )}
+-      </div>
++                ))}
++              </div>
++            </>
++          )}
++
++          <div className="xo-done-actions">
++            <button
++              type="button"
++              className="xo-ghost"
++              onClick={() => {
++                setFinished(false);
++                setIndex(0);
++              }}
++            >
++              Смотреть заново
++            </button>
++            <button type="button" className="xo-finish" onClick={onClose}>
++              Вернуться к карте
++            </button>
++          </div>
++        </main>
++      )}
+     </div>
+   );
+ }
+diff --git a/frontend/src/index.css b/frontend/src/index.css
+index f5f23d6..55b7b24 100644
+--- a/frontend/src/index.css
++++ b/frontend/src/index.css
+@@ -509,196 +509,485 @@ input {
+   color: #065f46;
+ }
+ 
+-.excursion-label {
+-  font-size: 12px;
+-  font-weight: 700;
+-  color: #059669;
+-  text-transform: uppercase;
+-  letter-spacing: 0.04em;
+-  margin-bottom: 4px;
+-}
++/* ---------- Полноэкранная экскурсия слайдами ---------- */
++
++.xo {
++  --xo-bg: #0c0f16;
++  --xo-panel: #131824;
++  --xo-line: rgba(255, 255, 255, 0.08);
++  --xo-text: #e8e6e1;
++  --xo-muted: #9aa3b2;
++  --xo-accent: #d4a85a;
++  --xo-green: #10b981;
+ 
+-/* полноэкранный режим — поверх карты (у Leaflet z-index до 1000) */
+-.excursion-overlay {
+   position: fixed;
+   inset: 0;
+-  z-index: 2000;
+-  background: #f9fafb;
+-  overflow-y: auto;
+-  animation: excursion-in 180ms ease-out;
++  z-index: 2000; /* поверх Leaflet */
++  display: flex;
++  flex-direction: column;
++  background: var(--xo-bg);
++  color: var(--xo-text);
++  animation: xo-in 220ms ease-out;
+ }
+ 
+-@keyframes excursion-in {
++@keyframes xo-in {
+   from {
+     opacity: 0;
+-    transform: translateY(12px);
+   }
+   to {
+     opacity: 1;
+-    transform: none;
+   }
+ }
+ 
+-.excursion-overlay-header {
+-  position: sticky;
+-  top: 0;
+-  z-index: 1;
++.xo-top {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 16px;
+-  padding: 14px max(20px, calc((100% - 1100px) / 2));
+-  background: rgba(255, 255, 255, 0.95);
+-  backdrop-filter: blur(6px);
+-  border-bottom: 1px solid #e5e7eb;
++  padding: 14px 28px;
++  border-bottom: 1px solid var(--xo-line);
+ }
+ 
+-.excursion-overlay-header h2 {
+-  margin: 0;
+-  font-size: 22px;
++.xo-top-title {
++  display: flex;
++  flex-direction: column;
++  gap: 2px;
++  min-width: 0;
+ }
+ 
+-.excursion-overlay-header-right {
+-  display: flex;
+-  align-items: center;
+-  gap: 12px;
++.xo-eyebrow {
++  font-size: 11px;
++  font-weight: 700;
++  letter-spacing: 0.14em;
++  text-transform: uppercase;
++  color: var(--xo-accent);
++}
++
++.xo-name {
++  font-size: 16px;
++  font-weight: 600;
++  white-space: nowrap;
++  overflow: hidden;
++  text-overflow: ellipsis;
+ }
+ 
+-.excursion-overlay-body {
+-  max-width: 1100px;
+-  margin: 0 auto;
+-  padding: 32px 20px 64px;
++.xo-close {
++  width: 40px;
++  height: 40px;
++  border-radius: 999px;
++  border: 1px solid var(--xo-line);
++  background: transparent;
++  color: var(--xo-text);
++  font-size: 22px;
++  cursor: pointer;
++  flex-shrink: 0;
+ }
+ 
+-.excursion-stops {
+-  list-style: none;
+-  margin: 0;
+-  padding: 0;
+-  display: flex;
+-  flex-direction: column;
+-  gap: 40px;
++.xo-close:hover {
++  background: rgba(255, 255, 255, 0.08);
+ }
+ 
+-/* точка: картинка и текст рядом, на чётных — зеркально */
+-.excursion-stop {
++.xo-message {
++  margin: auto;
++  color: var(--xo-muted);
++  font-size: 16px;
++}
++
++/* --- слайд --- */
++
++.xo-slide {
++  flex: 1;
++  min-height: 0;
+   display: grid;
+-  grid-template-columns: 3fr 2fr;
+-  gap: 32px;
+-  align-items: center;
++  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+ }
+ 
+-.excursion-stop:nth-child(even) {
+-  grid-template-columns: 2fr 3fr;
++.xo-slide.from-right {
++  animation: xo-from-right 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
+ }
+ 
+-.excursion-stop:nth-child(even) .excursion-stop-media {
+-  order: 2;
++.xo-slide.from-left {
++  animation: xo-from-left 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
+ }
+ 
+-.excursion-stop-media {
+-  border-radius: 16px;
++@keyframes xo-from-right {
++  from {
++    opacity: 0;
++    transform: translateX(32px);
++  }
++  to {
++    opacity: 1;
++    transform: none;
++  }
++}
++
++@keyframes xo-from-left {
++  from {
++    opacity: 0;
++    transform: translateX(-32px);
++  }
++  to {
++    opacity: 1;
++    transform: none;
++  }
++}
++
++.xo-media {
++  position: relative;
++  min-height: 0;
+   overflow: hidden;
+-  background: #f3f4f6;
+-  border: 1px solid #e5e7eb;
+-  box-shadow: 0 8px 24px rgba(17, 24, 39, 0.08);
++  background: #1a2030;
+ }
+ 
+-.excursion-stop-media img,
+-.excursion-stop-media .photo-placeholder {
++.xo-media img,
++.xo-media .photo-placeholder {
+   width: 100%;
+-  height: auto;
+-  aspect-ratio: 16 / 10;
++  height: 100%;
+   object-fit: cover;
+   display: flex;
++  border: 0;
++  border-radius: 0;
+ }
+ 
+-.excursion-stop-media img {
++.xo-media img {
+   display: block;
+ }
+ 
+-.excursion-placeholder {
+-  background: linear-gradient(135deg, #ecfdf5, #eef2ff);
+-  font-size: 72px;
++.xo-media .excursion-placeholder {
++  background:
++    radial-gradient(circle at 30% 30%, rgba(212, 168, 90, 0.18), transparent 55%),
++    linear-gradient(160deg, #1f2738, #0f141f);
++  font-size: 110px;
+ }
+ 
+-.excursion-stop-number {
+-  width: 36px;
+-  height: 36px;
++/* затемнение к краю, чтобы картинка мягко переходила в текст */
++.xo-media::after {
++  content: "";
++  position: absolute;
++  inset: 0;
++  background: linear-gradient(90deg, transparent 70%, rgba(12, 15, 22, 0.55));
++  pointer-events: none;
++}
++
++.xo-counter {
++  position: absolute;
++  left: 24px;
++  bottom: 20px;
++  z-index: 1;
++  padding: 6px 14px;
+   border-radius: 999px;
+-  background: #059669;
++  background: rgba(0, 0, 0, 0.55);
++  backdrop-filter: blur(6px);
++  font-size: 14px;
++  color: #cbd2dc;
++  font-variant-numeric: tabular-nums;
++}
++
++.xo-counter strong {
++  color: #ffffff;
++}
++
++.xo-text {
++  min-height: 0;
++  overflow-y: auto;
++  display: flex;
++  flex-direction: column;
++  padding: 48px 56px 40px;
++  background: var(--xo-panel);
++}
++
++/* короткий текст — по центру, длинный — прокручивается с начала */
++.xo-text-inner {
++  margin-block: auto;
++}
++
++.xo-subtitle {
++  display: inline-block;
++  margin-bottom: 14px;
++  padding: 4px 12px;
++  border: 1px solid rgba(212, 168, 90, 0.45);
++  border-radius: 999px;
++  font-size: 12px;
++  font-weight: 700;
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  color: var(--xo-accent);
++}
++
++.xo-title {
++  margin: 0 0 22px;
++  font-family: Georgia, "Times New Roman", serif;
++  font-size: clamp(26px, 2.6vw, 38px);
++  font-weight: 700;
++  line-height: 1.18;
+   color: #ffffff;
++}
++
++.xo-paragraph {
++  margin: 0 0 16px;
++  max-width: 62ch;
++  font-size: 17px;
++  line-height: 1.7;
++  color: var(--xo-text);
++}
++
++.xo-fact {
++  margin-top: 26px;
++  max-width: 62ch;
++  padding: 16px 20px;
++  border-left: 3px solid var(--xo-accent);
++  border-radius: 0 12px 12px 0;
++  background: rgba(212, 168, 90, 0.08);
++  font-size: 15px;
++  line-height: 1.6;
++  color: #d9d4c7;
++}
++
++.xo-fact-label {
++  display: block;
++  margin-bottom: 6px;
++  font-size: 11px;
+   font-weight: 700;
++  letter-spacing: 0.12em;
++  text-transform: uppercase;
++  color: var(--xo-accent);
++}
++
++/* --- нижняя панель --- */
++
++.xo-bottom {
+   display: flex;
+   align-items: center;
+-  justify-content: center;
+-  margin-bottom: 12px;
++  gap: 20px;
++  padding: 16px 28px;
++  border-top: 1px solid var(--xo-line);
+ }
+ 
+-.excursion-stop-text h3 {
+-  margin: 0 0 10px;
+-  font-size: 24px;
+-  line-height: 1.25;
++.xo-nav {
++  width: 48px;
++  height: 48px;
++  border-radius: 999px;
++  border: 1px solid var(--xo-line);
++  background: transparent;
++  color: var(--xo-text);
++  font-size: 20px;
++  cursor: pointer;
++  flex-shrink: 0;
++  transition: background 150ms;
+ }
+ 
+-.excursion-stop-text p {
+-  margin: 0;
+-  font-size: 16px;
+-  line-height: 1.65;
+-  color: #374151;
++.xo-nav:hover:not(:disabled) {
++  background: rgba(255, 255, 255, 0.08);
+ }
+ 
+-.excursion-finish {
+-  margin-top: 56px;
+-  padding-top: 32px;
+-  border-top: 1px solid #e5e7eb;
+-  text-align: center;
++.xo-nav:disabled {
++  opacity: 0.3;
++  cursor: default;
++}
++
++.xo-nav.primary {
++  background: var(--xo-accent);
++  border-color: var(--xo-accent);
++  color: #1a1408;
++  font-weight: 700;
++}
++
++.xo-nav.primary:hover {
++  background: #e0b76c;
++}
++
++.xo-progress {
++  flex: 1;
++  display: flex;
++  gap: 6px;
++}
++
++.xo-seg {
++  flex: 1;
++  height: 6px;
++  padding: 0;
++  border: 0;
++  border-radius: 999px;
++  background: rgba(255, 255, 255, 0.12);
++  cursor: pointer;
++  transition: background 200ms;
++}
++
++.xo-seg.done {
++  background: var(--xo-accent);
++}
++
++.xo-seg:hover {
++  background: rgba(212, 168, 90, 0.6);
++}
++
++.xo-finish {
++  height: 48px;
++  padding: 0 24px;
++  border: 0;
++  border-radius: 999px;
++  background: var(--xo-green);
++  color: #ffffff;
++  font-weight: 700;
++  font-size: 15px;
++  cursor: pointer;
++  flex-shrink: 0;
++}
++
++.xo-finish:hover:not(:disabled) {
++  background: #059669;
++}
++
++.xo-finish:disabled {
++  opacity: 0.6;
++}
++
++.xo-error {
++  padding: 0 28px 12px;
++  text-align: right;
++  color: #fca5a5;
++  font-size: 14px;
++}
++
++/* --- финальный экран --- */
++
++.xo-done {
++  flex: 1;
++  overflow-y: auto;
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+-  gap: 12px;
++  padding: 56px 24px;
++  text-align: center;
++  animation: xo-from-right 320ms ease-out;
+ }
+ 
+-.excursion-finish h3 {
+-  margin: 0;
+-  font-size: 24px;
++.xo-done-icon {
++  font-size: 56px;
+ }
+ 
+-.excursion-finish-button {
+-  min-width: 260px;
+-  padding: 14px 24px;
+-  font-size: 16px;
++.xo-done h2 {
++  margin: 12px 0 8px;
++  font-family: Georgia, "Times New Roman", serif;
++  font-size: 36px;
++  color: #ffffff;
+ }
+ 
+-.excursion-done-icon {
+-  font-size: 48px;
++.xo-done > p {
++  margin: 0;
++  color: var(--xo-muted);
++  font-size: 16px;
+ }
+ 
+-.excursion-next-title {
+-  margin: 16px 0 4px;
+-  font-size: 16px;
+-  color: #6b7280;
++.xo-done h3 {
++  margin: 40px 0 16px;
++  font-size: 13px;
++  font-weight: 700;
++  letter-spacing: 0.14em;
++  text-transform: uppercase;
++  color: var(--xo-accent);
+ }
+ 
+-.excursion-next-grid {
++.xo-next-grid {
+   width: 100%;
++  max-width: 1000px;
+   display: grid;
+-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
++  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+   gap: 12px;
+-  margin-bottom: 12px;
+ }
+ 
+-@media (max-width: 860px) {
+-  .excursion-stop,
+-  .excursion-stop:nth-child(even) {
++.xo-next-card {
++  display: flex;
++  flex-direction: column;
++  align-items: flex-start;
++  gap: 6px;
++  padding: 18px;
++  border: 1px solid var(--xo-line);
++  border-radius: 16px;
++  background: var(--xo-panel);
++  color: var(--xo-text);
++  text-align: left;
++  cursor: pointer;
++  transition: border-color 150ms, transform 150ms;
++}
++
++.xo-next-card:hover {
++  border-color: rgba(212, 168, 90, 0.6);
++  transform: translateY(-2px);
++}
++
++.xo-next-emoji {
++  font-size: 26px;
++}
++
++.xo-next-name {
++  font-weight: 700;
++  font-size: 15px;
++  line-height: 1.3;
++}
++
++.xo-next-meta {
++  font-size: 13px;
++  color: var(--xo-muted);
++}
++
++.xo-done-actions {
++  display: flex;
++  gap: 12px;
++  margin-top: 36px;
++}
++
++.xo-ghost {
++  height: 48px;
++  padding: 0 24px;
++  border: 1px solid var(--xo-line);
++  border-radius: 999px;
++  background: transparent;
++  color: var(--xo-text);
++  font-weight: 600;
++  font-size: 15px;
++  cursor: pointer;
++}
++
++.xo-ghost:hover {
++  background: rgba(255, 255, 255, 0.08);
++}
++
++/* --- телефон / узкий экран --- */
++
++@media (max-width: 900px) {
++  .xo-top,
++  .xo-bottom {
++    padding-left: 16px;
++    padding-right: 16px;
++  }
++
++  .xo-slide {
+     grid-template-columns: 1fr;
+-    gap: 16px;
++    grid-template-rows: 38vh minmax(0, 1fr);
++  }
++
++  .xo-media::after {
++    background: linear-gradient(180deg, transparent 70%, rgba(12, 15, 22, 0.55));
++  }
++
++  .xo-media .excursion-placeholder {
++    font-size: 72px;
++  }
++
++  .xo-text {
++    padding: 24px 20px 28px;
++  }
++
++  .xo-paragraph {
++    font-size: 16px;
+   }
+ 
+-  .excursion-stop:nth-child(even) .excursion-stop-media {
+-    order: 0;
++  .xo-bottom {
++    gap: 12px;
+   }
+ 
+-  .excursion-stop-text h3 {
+-    font-size: 20px;
++  .xo-done h2 {
++    font-size: 28px;
+   }
+ }
+diff --git a/frontend/src/types/index.ts b/frontend/src/types/index.ts
+index ed10990..8326d6c 100644
+--- a/frontend/src/types/index.ts
++++ b/frontend/src/types/index.ts
+@@ -81,7 +81,9 @@ export interface ExcursionStop {
+   id: number;
+   position: number;
+   title: string;
++  subtitle?: string | null;
+   description: string;
++  fact?: string | null;
+   image_url?: string | null;
+ }
+ 
+-- 
+2.43.0
+

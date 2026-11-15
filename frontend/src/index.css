@@ -509,29 +509,111 @@ input {
   color: #065f46;
 }
 
-.excursion-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #059669;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 4px;
-}
+/* ---------- Полноэкранная экскурсия слайдами ---------- */
 
-/* полноэкранный режим — поверх карты (у Leaflet z-index до 1000) */
-.excursion-overlay {
+.xo {
+  --xo-bg: #0c0f16;
+  --xo-panel: #131824;
+  --xo-line: rgba(255, 255, 255, 0.08);
+  --xo-text: #e8e6e1;
+  --xo-muted: #9aa3b2;
+  --xo-accent: #d4a85a;
+  --xo-green: #10b981;
+
   position: fixed;
   inset: 0;
-  z-index: 2000;
-  background: #f9fafb;
-  overflow-y: auto;
-  animation: excursion-in 180ms ease-out;
+  z-index: 2000; /* поверх Leaflet */
+  display: flex;
+  flex-direction: column;
+  background: var(--xo-bg);
+  color: var(--xo-text);
+  animation: xo-in 220ms ease-out;
 }
 
-@keyframes excursion-in {
+@keyframes xo-in {
   from {
     opacity: 0;
-    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.xo-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--xo-line);
+}
+
+.xo-top-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.xo-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--xo-accent);
+}
+
+.xo-name {
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xo-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--xo-line);
+  background: transparent;
+  color: var(--xo-text);
+  font-size: 22px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.xo-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.xo-message {
+  margin: auto;
+  color: var(--xo-muted);
+  font-size: 16px;
+}
+
+/* --- слайд --- */
+
+.xo-slide {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+}
+
+.xo-slide.from-right {
+  animation: xo-from-right 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.xo-slide.from-left {
+  animation: xo-from-left 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@keyframes xo-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
   }
   to {
     opacity: 1;
@@ -539,166 +621,373 @@ input {
   }
 }
 
-.excursion-overlay-header {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px max(20px, calc((100% - 1100px) / 2));
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(6px);
-  border-bottom: 1px solid #e5e7eb;
+@keyframes xo-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-.excursion-overlay-header h2 {
-  margin: 0;
-  font-size: 22px;
-}
-
-.excursion-overlay-header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.excursion-overlay-body {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 32px 20px 64px;
-}
-
-.excursion-stops {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 40px;
-}
-
-/* точка: картинка и текст рядом, на чётных — зеркально */
-.excursion-stop {
-  display: grid;
-  grid-template-columns: 3fr 2fr;
-  gap: 32px;
-  align-items: center;
-}
-
-.excursion-stop:nth-child(even) {
-  grid-template-columns: 2fr 3fr;
-}
-
-.excursion-stop:nth-child(even) .excursion-stop-media {
-  order: 2;
-}
-
-.excursion-stop-media {
-  border-radius: 16px;
+.xo-media {
+  position: relative;
+  min-height: 0;
   overflow: hidden;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 8px 24px rgba(17, 24, 39, 0.08);
+  background: #1a2030;
 }
 
-.excursion-stop-media img,
-.excursion-stop-media .photo-placeholder {
+.xo-media img,
+.xo-media .photo-placeholder {
   width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 10;
+  height: 100%;
   object-fit: cover;
   display: flex;
+  border: 0;
+  border-radius: 0;
 }
 
-.excursion-stop-media img {
+.xo-media img {
   display: block;
 }
 
-.excursion-placeholder {
-  background: linear-gradient(135deg, #ecfdf5, #eef2ff);
-  font-size: 72px;
+.xo-media .excursion-placeholder {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(212, 168, 90, 0.18), transparent 55%),
+    linear-gradient(160deg, #1f2738, #0f141f);
+  font-size: 110px;
 }
 
-.excursion-stop-number {
-  width: 36px;
-  height: 36px;
+/* затемнение к краю, чтобы картинка мягко переходила в текст */
+.xo-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 70%, rgba(12, 15, 22, 0.55));
+  pointer-events: none;
+}
+
+.xo-counter {
+  position: absolute;
+  left: 24px;
+  bottom: 20px;
+  z-index: 1;
+  padding: 6px 14px;
   border-radius: 999px;
-  background: #059669;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  font-size: 14px;
+  color: #cbd2dc;
+  font-variant-numeric: tabular-nums;
+}
+
+.xo-counter strong {
   color: #ffffff;
+}
+
+.xo-text {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 48px 56px 40px;
+  background: var(--xo-panel);
+}
+
+/* короткий текст — по центру, длинный — прокручивается с начала */
+.xo-text-inner {
+  margin-block: auto;
+}
+
+.xo-subtitle {
+  display: inline-block;
+  margin-bottom: 14px;
+  padding: 4px 12px;
+  border: 1px solid rgba(212, 168, 90, 0.45);
+  border-radius: 999px;
+  font-size: 12px;
   font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--xo-accent);
+}
+
+.xo-title {
+  margin: 0 0 22px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(26px, 2.6vw, 38px);
+  font-weight: 700;
+  line-height: 1.18;
+  color: #ffffff;
+}
+
+.xo-paragraph {
+  margin: 0 0 16px;
+  max-width: 62ch;
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--xo-text);
+}
+
+.xo-fact {
+  margin-top: 26px;
+  max-width: 62ch;
+  padding: 16px 20px;
+  border-left: 3px solid var(--xo-accent);
+  border-radius: 0 12px 12px 0;
+  background: rgba(212, 168, 90, 0.08);
+  font-size: 15px;
+  line-height: 1.6;
+  color: #d9d4c7;
+}
+
+.xo-fact-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--xo-accent);
+}
+
+/* --- нижняя панель --- */
+
+.xo-bottom {
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-bottom: 12px;
+  gap: 20px;
+  padding: 16px 28px;
+  border-top: 1px solid var(--xo-line);
 }
 
-.excursion-stop-text h3 {
-  margin: 0 0 10px;
-  font-size: 24px;
-  line-height: 1.25;
+.xo-nav {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 1px solid var(--xo-line);
+  background: transparent;
+  color: var(--xo-text);
+  font-size: 20px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 150ms;
 }
 
-.excursion-stop-text p {
-  margin: 0;
-  font-size: 16px;
-  line-height: 1.65;
-  color: #374151;
+.xo-nav:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.excursion-finish {
-  margin-top: 56px;
-  padding-top: 32px;
-  border-top: 1px solid #e5e7eb;
-  text-align: center;
+.xo-nav:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.xo-nav.primary {
+  background: var(--xo-accent);
+  border-color: var(--xo-accent);
+  color: #1a1408;
+  font-weight: 700;
+}
+
+.xo-nav.primary:hover {
+  background: #e0b76c;
+}
+
+.xo-progress {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+
+.xo-seg {
+  flex: 1;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: background 200ms;
+}
+
+.xo-seg.done {
+  background: var(--xo-accent);
+}
+
+.xo-seg:hover {
+  background: rgba(212, 168, 90, 0.6);
+}
+
+.xo-finish {
+  height: 48px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--xo-green);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.xo-finish:hover:not(:disabled) {
+  background: #059669;
+}
+
+.xo-finish:disabled {
+  opacity: 0.6;
+}
+
+.xo-error {
+  padding: 0 28px 12px;
+  text-align: right;
+  color: #fca5a5;
+  font-size: 14px;
+}
+
+/* --- финальный экран --- */
+
+.xo-done {
+  flex: 1;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  padding: 56px 24px;
+  text-align: center;
+  animation: xo-from-right 320ms ease-out;
 }
 
-.excursion-finish h3 {
+.xo-done-icon {
+  font-size: 56px;
+}
+
+.xo-done h2 {
+  margin: 12px 0 8px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 36px;
+  color: #ffffff;
+}
+
+.xo-done > p {
   margin: 0;
-  font-size: 24px;
-}
-
-.excursion-finish-button {
-  min-width: 260px;
-  padding: 14px 24px;
+  color: var(--xo-muted);
   font-size: 16px;
 }
 
-.excursion-done-icon {
-  font-size: 48px;
+.xo-done h3 {
+  margin: 40px 0 16px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--xo-accent);
 }
 
-.excursion-next-title {
-  margin: 16px 0 4px;
-  font-size: 16px;
-  color: #6b7280;
-}
-
-.excursion-next-grid {
+.xo-next-grid {
   width: 100%;
+  max-width: 1000px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
-  margin-bottom: 12px;
 }
 
-@media (max-width: 860px) {
-  .excursion-stop,
-  .excursion-stop:nth-child(even) {
+.xo-next-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid var(--xo-line);
+  border-radius: 16px;
+  background: var(--xo-panel);
+  color: var(--xo-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms, transform 150ms;
+}
+
+.xo-next-card:hover {
+  border-color: rgba(212, 168, 90, 0.6);
+  transform: translateY(-2px);
+}
+
+.xo-next-emoji {
+  font-size: 26px;
+}
+
+.xo-next-name {
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.xo-next-meta {
+  font-size: 13px;
+  color: var(--xo-muted);
+}
+
+.xo-done-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 36px;
+}
+
+.xo-ghost {
+  height: 48px;
+  padding: 0 24px;
+  border: 1px solid var(--xo-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--xo-text);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.xo-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* --- телефон / узкий экран --- */
+
+@media (max-width: 900px) {
+  .xo-top,
+  .xo-bottom {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .xo-slide {
     grid-template-columns: 1fr;
-    gap: 16px;
+    grid-template-rows: 38vh minmax(0, 1fr);
   }
 
-  .excursion-stop:nth-child(even) .excursion-stop-media {
-    order: 0;
+  .xo-media::after {
+    background: linear-gradient(180deg, transparent 70%, rgba(12, 15, 22, 0.55));
   }
 
-  .excursion-stop-text h3 {
-    font-size: 20px;
+  .xo-media .excursion-placeholder {
+    font-size: 72px;
+  }
+
+  .xo-text {
+    padding: 24px 20px 28px;
+  }
+
+  .xo-paragraph {
+    font-size: 16px;
+  }
+
+  .xo-bottom {
+    gap: 12px;
+  }
+
+  .xo-done h2 {
+    font-size: 28px;
   }
 }

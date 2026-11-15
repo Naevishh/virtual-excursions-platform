@@ -93,7 +93,9 @@ class ExcursionStop(Base):
     )
     position = Column(Integer, nullable=False)
     title = Column(String(255), nullable=False)
-    description = Column(Text, nullable=False)
+    subtitle = Column(String(255), nullable=True)  # подпись над заголовком
+    description = Column(Text, nullable=False)  # абзацы через пустую строку
+    fact = Column(Text, nullable=True)  # врезка «Интересно»
     image_url = Column(Text, nullable=True)
 
     attraction = relationship("Attraction", back_populates="stops")

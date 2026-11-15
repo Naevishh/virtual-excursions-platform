@@ -81,7 +81,9 @@ export interface ExcursionStop {
   id: number;
   position: number;
   title: string;
+  subtitle?: string | null;
   description: string;
+  fact?: string | null;
   image_url?: string | null;
 }
 
